@@ -1,0 +1,18 @@
+{
+  "delta_unrelated_acc": 0.75,
+  "epochs": 3,
+  "lambda_spec": 1.0,
+  "lr": 1e-05,
+  "n_train": 48,
+  "n_val": 12,
+  "params_lt_1B": true,
+  "post": {
+    "original_acc": 0.9166666666666666,
+    "unrelated_acc": 0.8333333333333334
+  },
+  "pre": {
+    "original_acc": 0.16666666666666666,
+    "unrelated_acc": 0.08333333333333333
+  },
+  "seed": 42
+}

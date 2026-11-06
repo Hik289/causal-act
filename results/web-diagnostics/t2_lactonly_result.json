@@ -1,0 +1,18 @@
+{
+  "epochs": 3,
+  "lambda_target": 1.0,
+  "lr": 1e-05,
+  "n_train": 102,
+  "n_val": 48,
+  "post": {
+    "OriginalAcc": 1.0,
+    "PairCausalAcc": 0.0,
+    "TargetedAcc": 0.0
+  },
+  "pre": {
+    "OriginalAcc": 0.375,
+    "PairCausalAcc": 0.0,
+    "TargetedAcc": 0.5416666666666666
+  },
+  "seed": 42
+}

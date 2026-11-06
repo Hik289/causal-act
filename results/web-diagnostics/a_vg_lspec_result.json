@@ -1,0 +1,21 @@
+{
+  "delta_consistency": 0.25,
+  "delta_unrelated_acc": 0.75,
+  "epochs": 3,
+  "lambda_spec": 1.0,
+  "lr": 1e-05,
+  "n_train": 48,
+  "n_val": 12,
+  "params_lt_1B": true,
+  "post": {
+    "consistency": 0.3333333333333333,
+    "original_acc": 0.8333333333333334,
+    "unrelated_acc": 0.75
+  },
+  "pre": {
+    "consistency": 0.08333333333333333,
+    "original_acc": 0.0,
+    "unrelated_acc": 0.0
+  },
+  "seed": 42
+}

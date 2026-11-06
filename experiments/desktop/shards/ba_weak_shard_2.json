@@ -1,0 +1,40 @@
+{
+  "gimp": [
+    "77b8ab4d-994f-43ac-8930-8ca087d7c4b4",
+    "f723c744-e62c-4ae6-98d1-750d3cd7d79d",
+    "58d3eeeb-e9d0-499f-962e-fd0db2a744d8"
+  ],
+  "vlc": [
+    "8d9fd4e2-6fdb-46b0-b9b9-02f06495c62f",
+    "7882ed6e-bece-4bf0-bada-c32dc1ddae72"
+  ],
+  "libreoffice_calc": [
+    "535364ea-05bd-46ea-9937-9f55c68507e8",
+    "035f41ba-6653-43ab-aa63-c86d449d62e5",
+    "0a2e43bf-b26c-4631-a966-af9dfa12c9e5",
+    "6e99a1ad-07d2-4b66-a1ce-ece6d99c20a5"
+  ],
+  "libreoffice_writer": [
+    "0b17a146-2934-46c7-8727-73ff6b6483e8",
+    "8472fece-c7dd-4241-8d65-9b3cd1a0b568",
+    "bb8ccc78-479f-4a2f-a71e-d565e439436b"
+  ],
+  "libreoffice_impress": [
+    "3b27600c-3668-4abd-8f84-7bcdebbccbdb",
+    "986fc832-6af2-417c-8845-9272b3a1528b",
+    "c82632a4-56b6-4db4-9dd1-3820ee3388e4",
+    "5cfb9197-e72b-454b-900e-c06b0c802b40"
+  ],
+  "multi_apps": [
+    "2fe4b718-3bd7-46ec-bdce-b184f5653624",
+    "a0b9dc9c-fc07-4a88-8c5d-5e3ecad91bcb",
+    "da52d699-e8d2-4dc5-9191-a2199e0b6a9b",
+    "0c825995-5b70-4526-b663-113f4c999dd2",
+    "3a93cae4-ad3e-403e-8c12-65303b271818",
+    "36037439-2044-4b50-b9d1-875b5a332143",
+    "b337d106-053f-4d37-8da0-7f9c4043a66b",
+    "5990457f-2adb-467b-a4af-5c857c92d762",
+    "47f7c0ce-a5fb-4100-a5e6-65cd0e7429e5",
+    "7f35355e-02a6-45b5-b140-f0be698bcf85"
+  ]
+}

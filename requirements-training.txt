@@ -1,0 +1,9 @@
+# Install a CUDA-enabled PyTorch build for your device first.
+transformers==4.49.0
+accelerate>=0.26
+pillow
+numpy
+num2words
+flask
+openai>=1
+playwright

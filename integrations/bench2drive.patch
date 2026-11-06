@@ -1,0 +1,11 @@
+diff --git a/leaderboard/leaderboard/utils/result_writer.py b/leaderboard/leaderboard/utils/result_writer.py
+--- a/leaderboard/leaderboard/utils/result_writer.py
++++ b/leaderboard/leaderboard/utils/result_writer.py
+@@ -24,6 +24,7 @@
+ }
+ 
+ STATUS_PRIORITY = {
++    "INIT": -1,
+     "FAILURE": 0,
+     "ACCEPTABLE": 1,
+     "SUCCESS": 2,

@@ -1,0 +1,59 @@
+{
+  "chrome": [
+    "35253b65-1c19-4304-8aa4-6884b8218fc0",
+    "12086550-11c0-466b-b367-1d9e75b3910e",
+    "a96b564e-dbe9-42c3-9ccf-b4498073438a",
+    "f79439ad-3ee8-4f99-a518-0eb60e5652b0",
+    "121ba48f-9e17-48ce-9bc6-a4fb17a7ebba",
+    "cabb3bae-cccb-41bd-9f5d-0f3a9fecd825"
+  ],
+  "vs_code": [
+    "9439a27b-18ae-42d8-9778-5f68f891805e",
+    "70745df8-f2f5-42bd-8074-fbc10334fcc5",
+    "971cbb5b-3cbf-4ff7-9e24-b5c84fcebfa6"
+  ],
+  "libreoffice_calc": [
+    "12382c62-0cd1-4bf2-bdc8-1d20bf9b2371",
+    "abed40dc-063f-4598-8ba5-9fe749c0615d",
+    "51b11269-2ca8-4b2a-9163-f21758420e78",
+    "347ef137-7eeb-4c80-a3bb-0951f26a8aff",
+    "6e99a1ad-07d2-4b66-a1ce-ece6d99c20a5"
+  ],
+  "libreoffice_writer": [
+    "0810415c-bde4-4443-9047-d5f70165a697",
+    "6a33f9b9-0a56-4844-9c3f-96ec3ffb3ba2",
+    "b21acd93-60fd-4127-8a43-2f5178f4a830"
+  ],
+  "os": [
+    "bedcedc4-4d72-425e-ad62-21960b11fe0d",
+    "b3d4a89c-53f2-4d6b-8b6a-541fb5d205fa",
+    "4783cc41-c03c-4e1b-89b4-50658f642bd5"
+  ],
+  "thunderbird": [
+    "15c3b339-88f7-4a86-ab16-e71c58dcb01e",
+    "a10b69e1-6034-4a2b-93e1-571d45194f75"
+  ],
+  "libreoffice_impress": [
+    "455d3c66-7dc6-4537-a39a-36d3e9119df7",
+    "a097acff-6266-4291-9fbd-137af7ecd439",
+    "15aece23-a215-4579-91b4-69eec72e18da",
+    "9cf05d24-6bd9-4dae-8967-f67d88f5d38a",
+    "af2d657a-e6b3-4c6a-9f67-9e3ed015974c",
+    "4ed5abd0-8b5d-47bd-839f-cacfa15ca37a"
+  ],
+  "multi_apps": [
+    "3680a5ee-6870-426a-a997-eba929a0d25c",
+    "937087b6-f668-4ba6-9110-60682ee33441",
+    "f8cfa149-d1c1-4215-8dac-4a0932bad3c2",
+    "acb0f96b-e27c-44d8-b55f-7cb76609dfcd",
+    "deec51c9-3b1e-4b9e-993c-4776f20e8bb2",
+    "1f18aa87-af6f-41ef-9853-cdb8f32ebdea",
+    "a82b78bb-7fde-4cb3-94a4-035baf10bcf0",
+    "81c425f5-78f3-4771-afd6-3d2973825947",
+    "4c26e3f3-3a14-4d86-b44a-d3cedebbb487",
+    "9f3bb592-209d-43bc-bb47-d77d9df56504",
+    "c2751594-0cd5-4088-be1b-b5f2f9ec97c4",
+    "91190194-f406-4cd6-b3f9-c43fac942b22",
+    "236833a3-5704-47fc-888c-4f298f09f799"
+  ]
+}

@@ -1,0 +1,21 @@
+# Local runtime inputs and outputs
+.env
+.env.*
+.auth/
+.runs/
+.vendor/
+.venv*/
+__pycache__/
+.pytest_cache/
+.DS_Store
+*.py[cod]
+*.log
+*.jsonl
+*.safetensors
+*.pth
+*.pt
+*.ckpt
+*.qcow2
+*.zip
+*.tar
+*.tar.gz

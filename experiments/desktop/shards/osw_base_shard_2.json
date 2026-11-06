@@ -1,0 +1,59 @@
+{
+  "chrome": [
+    "06fe7178-4491-4589-810f-2e2bc9502122",
+    "3720f614-37fd-4d04-8a6b-76f54f8c222d",
+    "9656a811-9b5b-4ddf-99c7-5117bcef0626",
+    "da46d875-6b82-4681-9284-653b0c7ae241",
+    "b4f95342-463e-4179-8c3f-193cd7241fb2",
+    "9f935cce-0a9f-435f-8007-817732bfc0a5"
+  ],
+  "vs_code": [
+    "4e60007a-f5be-4bfc-9723-c39affa0a6d3",
+    "6ed0a554-cbee-4b44-84ea-fd6c042f4fe1",
+    "dcbe20e8-647f-4f1d-8696-f1c5bbb570e3"
+  ],
+  "libreoffice_calc": [
+    "3aaa4e37-dc91-482e-99af-132a612d40f3",
+    "0bf05a7d-b28b-44d2-955a-50b41e24012a",
+    "1de60575-bb6e-4c3d-9e6a-2fa699f9f197",
+    "0a2e43bf-b26c-4631-a966-af9dfa12c9e5",
+    "21df9241-f8d7-4509-b7f1-37e501a823f7",
+    "3a7c8185-25c1-4941-bd7b-96e823c9f21f"
+  ],
+  "libreoffice_writer": [
+    "4bcb1253-a636-4df4-8cb0-a35c04dfef31",
+    "936321ce-5236-426a-9a20-e0e3c5dc536f",
+    "bb8ccc78-479f-4a2f-a71e-d565e439436b"
+  ],
+  "os": [
+    "e0df059f-28a6-4169-924f-b9623e7184cc",
+    "5812b315-e7bd-4265-b51f-863c02174c28",
+    "6f56bf42-85b8-4fbb-8e06-6c44960184ba"
+  ],
+  "thunderbird": [
+    "9b7bc335-06b5-4cd3-9119-1a649c478509"
+  ],
+  "libreoffice_impress": [
+    "5d901039-a89c-4bfb-967b-bf66f4df075e",
+    "ce88f674-ab7a-43da-9201-468d38539e4a",
+    "a669ef01-ded5-4099-9ea9-25e99b569840",
+    "b8adbc24-cef2-4b15-99d5-ecbe7ff445eb",
+    "f23acfd2-c485-4b7c-a1e7-d4303ddfe864",
+    "05dd4c1d-c489-4c85-8389-a7836c4f0567"
+  ],
+  "multi_apps": [
+    "2c9fc0de-3ee7-45e1-a5df-c86206ad78b5",
+    "78aed49a-a710-4321-a793-b611a7c5b56b",
+    "ee9a3c83-f437-4879-8918-be5efbb9fac7",
+    "b5062e3e-641c-4e3a-907b-ac864d2e7652",
+    "c7c1e4c3-9e92-4eba-a4b8-689953975ea4",
+    "2c1ebcd7-9c6d-4c9a-afad-900e381ecd5e",
+    "5bc63fb9-276a-4439-a7c1-9dc76401737f",
+    "da922383-bfa4-4cd3-bbad-6bebab3d7742",
+    "aad10cd7-9337-4b62-b704-a857848cedf2",
+    "415ef462-bed3-493a-ac36-ca8c6d23bf1b",
+    "778efd0a-153f-4842-9214-f05fc176b877",
+    "3c8f201a-009d-4bbe-8b65-a6f8b35bb57f",
+    "aceb0368-56b8-4073-b70e-3dc9aee184e0"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "chrome": [
+    "e1e75309-3ddb-4d09-92ec-de869c928143",
+    "99146c54-4f37-4ab8-9327-5f3291665e1e",
+    "fc6d8143-9452-4171-9459-7f515143419a",
+    "6c4c23a1-42a4-43cc-9db1-2f86ff3738cc",
+    "f5d96daf-83a8-4c86-9686-bada31fc66ab",
+    "f0b971a1-6831-4b9b-a50e-22a6e47f45ba"
+  ],
+  "vs_code": [
+    "e2b5e914-ffe1-44d2-8e92-58f8c5d92bb2",
+    "ec71221e-ac43-46f9-89b8-ee7d80f7e1c5",
+    "7c4cc09e-7a92-40dd-8338-b2286535c4ed"
+  ],
+  "libreoffice_calc": [
+    "1273e544-688f-496b-8d89-3e0f40aa0606",
+    "6054afcb-5bab-4702-90a0-b259b5d3217c",
+    "aa3a8974-2e85-438b-b29e-a64df44deb4b",
+    "4188d3a4-077d-46b7-9c86-23e1a036f6c1",
+    "a9f325aa-8c05-4e4f-8341-9e4358565f4f",
+    "21ab7b40-77c2-4ae6-8321-e00d3a086c73"
+  ],
+  "libreoffice_writer": [
+    "66399b0d-8fda-4618-95c4-bfc6191617e9",
+    "adf5e2c3-64c7-4644-b7b6-d2f0167927e7"
+  ],
+  "os": [
+    "94d95f96-9699-4208-98ba-3c3119edf9c2",
+    "b6781586-6346-41cd-935a-a6b1487918fc",
+    "c288e301-e626-4b98-a1ab-159dcb162af5"
+  ],
+  "thunderbird": [
+    "dfac9ee8-9bc4-4cdc-b465-4a4bfcd2f397",
+    "d38192b0-17dc-4e1d-99c3-786d0117de77"
+  ],
+  "libreoffice_impress": [
+    "550ce7e7-747b-495f-b122-acdc4d0b8e54",
+    "3b27600c-3668-4abd-8f84-7bcdebbccbdb",
+    "73c99fb9-f828-43ce-b87a-01dc07faa224",
+    "2b94c692-6abb-48ae-ab0b-b3e8a19cb340",
+    "70bca0cc-c117-427e-b0be-4df7299ebeb6",
+    "5c1a6c3d-c1b3-47cb-9b01-8d1b7544ffa1"
+  ],
+  "multi_apps": [
+    "2fe4b718-3bd7-46ec-bdce-b184f5653624",
+    "897e3b53-5d4d-444b-85cb-2cdc8a97d903",
+    "f7dfbef3-7697-431c-883a-db8583a4e4f9",
+    "00fa164e-2612-4439-992e-157d019a8436",
+    "d1acdb87-bb67-4f30-84aa-990e56a09c92",
+    "3a93cae4-ad3e-403e-8c12-65303b271818",
+    "26660ad1-6ebb-4f59-8cba-a8432dfe8d38",
+    "2373b66a-092d-44cb-bfd7-82e86e7a3b4d",
+    "02ce9a50-7af2-47ed-8596-af0c230501f8",
+    "7ff48d5b-2df2-49da-b500-a5150ffc7f18",
+    "47f7c0ce-a5fb-4100-a5e6-65cd0e7429e5",
+    "d68204bf-11c1-4b13-b48b-d303c73d4bf6",
+    "22a4636f-8179-4357-8e87-d1743ece1f81"
+  ]
+}

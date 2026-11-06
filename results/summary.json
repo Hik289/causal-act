@@ -1,0 +1,37 @@
+{
+  "forum_targeted": {
+    "constructed_pairs": 150,
+    "heldout_pairs": 48,
+    "base_both_correct": 0,
+    "original_only_both_correct": 0,
+    "paired_supervision_both_correct": 48,
+    "paired_supervision_plus_margin_both_correct": 48
+  },
+  "forum_baseline": {"scored": 161, "successful": 60},
+  "forum_broad_gate_pilot": {"matched": 100, "base_successful": 39, "refiner_successful": 23},
+  "forum_navigation_gate": {"rerun_overrides": 13, "rescues": 0, "harms": 7, "same": 5, "reported_delta_pp": -4.1},
+  "forum_stop_gate": {"rerun_overrides": 21, "rescues": 1, "harms": 3, "same": 17},
+  "forum_offline_grounding": {"all_examples": 94, "base_correct": 89, "refiner_correct": 89, "heldout_examples": 26, "heldout_base_correct": 25, "heldout_refiner_correct": 23},
+  "forum_oracle_checks": {"render": 60, "execution": 50, "unrelated_preservation": 52, "target_semantics": 50, "safety": 52, "total_agreement": 264},
+  "desktop_independent_matched": {"tasks": 296, "base_successful": 75, "refiner_successful": 58, "rescues": 19, "harms": 36, "step_budget": 12, "threshold": 0.9},
+  "desktop_independent_trigger_subset": {"rescues": 17, "harms": 4},
+  "desktop_partial_base_rerun": {"matched": 46, "fail_to_pass": 7, "pass_to_fail": 3},
+  "desktop_per_domain_passthrough_reconstruction": {
+    "baseline_pool": 300,
+    "base_successful": 76,
+    "rescues": 18,
+    "harms": 2,
+    "reconstructed_refiner_successful": 92,
+    "per_domain": {
+      "multi_apps": {"rescues": 5, "harms": 1},
+      "impress": {"rescues": 3, "harms": 0},
+      "writer": {"rescues": 4, "harms": 1},
+      "chrome": {"rescues": 2, "harms": 0},
+      "calc": {"rescues": 2, "harms": 0},
+      "os": {"rescues": 1, "harms": 0},
+      "vs_code": {"rescues": 1, "harms": 0},
+      "thunderbird": {"rescues": 0, "harms": 0}
+    }
+  },
+  "driving_base_smoke": {"logged_routes": 1, "route_index": 0, "route_completion_pct": 0.41, "driving_score": 0.00879, "status": "Failed - Agent got blocked"}
+}

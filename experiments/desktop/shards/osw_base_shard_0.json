@@ -1,0 +1,59 @@
+{
+  "chrome": [
+    "bb5e4c0d-f964-439c-97b6-bdb9747de3f4",
+    "480bcfea-d68f-4aaa-a0a9-2589ef319381",
+    "3299584d-8f11-4457-bf4c-ce98f7600250",
+    "47543840-672a-467d-80df-8f7c3b9788c9",
+    "82279c77-8fc6-46f6-9622-3ba96f61b477",
+    "b070486d-e161-459b-aa2b-ef442d973b92"
+  ],
+  "vs_code": [
+    "eabc805a-bfcf-4460-b250-ac92135819f6",
+    "9d425400-e9b2-4424-9a4b-d4c7abac4140",
+    "847a96b6-df94-4927-97e6-8cc9ea66ced7"
+  ],
+  "libreoffice_calc": [
+    "1954cced-e748-45c4-9c26-9855b97fbc5e",
+    "4f07fbe9-70de-4927-a4d5-bb28bc12c52c",
+    "035f41ba-6653-43ab-aa63-c86d449d62e5",
+    "a01fbce3-2793-461f-ab86-43680ccbae25",
+    "4e6fcf72-daf3-439f-a232-c434ce416af6",
+    "4172ea6e-6b77-4edb-a9cc-c0014bd1603b"
+  ],
+  "libreoffice_writer": [
+    "0e763496-b6bb-4508-a427-fad0b6c3e195",
+    "8472fece-c7dd-4241-8d65-9b3cd1a0b568",
+    "ecc2413d-8a48-416e-a3a2-d30106ca36cb"
+  ],
+  "os": [
+    "28cc3b7e-b194-4bc9-8353-d04c0f4d56d2",
+    "13584542-872b-42d8-b299-866967b5c3ef",
+    "4127319a-8b79-4410-b58a-7a151e15f3d7"
+  ],
+  "thunderbird": [
+    "5203d847-2572-4150-912a-03f062254390",
+    "a1af9f1c-50d5-4bc3-a51e-4d9b425ff638"
+  ],
+  "libreoffice_impress": [
+    "9ec204e4-f0a3-42f8-8458-b772a6797cab",
+    "2cd43775-7085-45d8-89fa-9e35c0a915cf",
+    "841b50aa-df53-47bd-a73a-22d3a9f73160",
+    "39be0d19-634d-4475-8768-09c130f5425d",
+    "7ae48c60-f143-4119-b659-15b8f485eb9a",
+    "04578141-1d42-4146-b9cf-6fab4ce5fd74"
+  ],
+  "multi_apps": [
+    "51f5801c-18b3-4f25-b0c3-02f85507a078",
+    "d9b7c649-c975-4f53-88f5-940b29c47247",
+    "bc2b57f3-686d-4ec9-87ce-edf850b7e442",
+    "eb303e01-261e-4972-8c07-c9b4e7a4922a",
+    "185f29bd-5da0-40a6-b69c-ba7f4e0324ef",
+    "7e287123-70ca-47b9-8521-47db09b69b14",
+    "a74b607e-6bb5-4ea8-8a7c-5d97c7bbcd2a",
+    "20236825-b5df-46e7-89bf-62e1d640a897",
+    "f5c13cdd-205c-4719-a562-348ae5cd1d91",
+    "e1fc0df3-c8b9-4ee7-864c-d0b590d3aa56",
+    "e8172110-ec08-421b-a6f5-842e6451911f",
+    "df67aebb-fb3a-44fd-b75b-51b6012df509"
+  ]
+}

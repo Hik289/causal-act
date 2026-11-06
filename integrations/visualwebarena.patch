@@ -1,0 +1,294 @@
+diff --git a/agent/agent.py b/agent/agent.py
+--- a/agent/agent.py
++++ b/agent/agent.py
+@@ -116,7 +116,15 @@
+         self.captioning_fn = captioning_fn
+ 
+         # Check if the model is multimodal.
+-        if ("gemini" in lm_config.model or "gpt-4" in lm_config.model and "vision" in lm_config.model) and type(prompt_constructor) == MultimodalCoTPromptConstructor:
++        # 原判定硬编码 gemini / gpt-4-vision; 我们的 Base 模型名不含这些关键字但支持 vision。
++        _model = lm_config.model
++        _is_vlm = (
++            "gemini" in _model
++            or ("gpt-4" in _model and "vision" in _model)
++            or "gpt-5" in _model or "gpt-6" in _model
++            or "sol" in _model or "luna" in _model or "terra" in _model
++        )
++        if _is_vlm and type(prompt_constructor) == MultimodalCoTPromptConstructor:
+             self.multimodal_inputs = True
+         else:
+             self.multimodal_inputs = False
+@@ -195,6 +203,191 @@
+                     action["raw_prediction"] = response
+                     break
+ 
++        import os as _os
++        _pt_log = _os.environ.get("CIV_PT_LOG")
++        _base_act_sig = (action.get("action_type"), str(action.get("element_id","")), str(action.get("answer",""))) if isinstance(action, dict) else None
++        _ref_url = _os.environ.get("CIV_REFINER_URL")
++        if _ref_url and self.multimodal_inputs:
++            try:
++                action = self._civ_refine(action, trajectory, intent, page_screenshot_img, _ref_url)
++            except Exception as _e:
++                import sys as _sys
++                print("[civ_refine] passthrough on error:", _e, file=_sys.stderr, flush=True)
++        # ── E2b: nav V-gated refine hook (官方 SoM, 每导航步) ──
++        _nav_url = _os.environ.get("CIV_NAV_REFINER_URL")
++        if _nav_url and self.multimodal_inputs:
++            try:
++                action = self._civ_nav_refine(action, trajectory, intent, page_screenshot_img, _nav_url)
++            except Exception as _e:
++                import sys as _sys
++                print("[civ_nav] passthrough on error:", _e, file=_sys.stderr, flush=True)
++        # ── E3: stop-sensitivity hook (looping-gate + V judge stop) ──
++        _stop_url = _os.environ.get("CIV_STOP_REFINER_URL")
++        if _stop_url and self.multimodal_inputs:
++            try:
++                action = self._civ_stop_refine(action, trajectory, intent, page_screenshot_img, meta_data, _stop_url)
++            except Exception as _e:
++                import sys as _sys
++                print("[civ_stop] passthrough on error:", _e, file=_sys.stderr, flush=True)
++        if _pt_log is not None and _base_act_sig is not None:
++            _final_sig = (action.get("action_type"), str(action.get("element_id","")), str(action.get("answer",""))) if isinstance(action, dict) else None
++            try:
++                with open(_pt_log, "a") as _f:
++                    _f.write("IDENT" if _final_sig==_base_act_sig else "DIFF")
++                    _f.write(" base="+repr(_base_act_sig)+" final="+repr(_final_sig)+chr(10))
++            except Exception:
++                pass
++        return action
++
++    def _civ_refine(self, action, trajectory, intent, page_screenshot_img, ref_url):
++        import io, base64, requests, os as _os
++        from browser_env.actions import create_stop_action, create_id_based_action
++        obs = trajectory[-1].get("observation", {}) if isinstance(trajectory[-1], dict) else {}
++        text_obs = obs.get("text", "") if isinstance(obs, dict) else ""
++        # 找 subscribe/unsubscribe 控件的 SoM element_id
++        sub_elem_id = None
++        for line in text_obs.splitlines():
++            low = line.lower()
++            if ("subscribe" in low or "unsubscribe" in low) and "[" in line:
++                try:
++                    sub_elem_id = line.split("[",1)[1].split("]",1)[0].strip()
++                except Exception:
++                    pass
++                break
++        # ── E1.1 修复门控: 只在 base 候选动作本身指向 subscribe 控件时介入 ──
++        base_eid = str(action.get("element_id", "")).strip()
++        base_is_sub_click = (action.get("action_type") == 6  # CLICK = 6
++                             and sub_elem_id is not None and base_eid == str(sub_elem_id))
++        # 审计日志: 每次决策记录 (task 粒度由上层 render 对齐)
++        _audit = _os.environ.get("CIV_REFINE_AUDIT")
++        def _log(tag):
++            if _audit:
++                try:
++                    with open(_audit, "a") as _f:
++                        _f.write(f"intent={intent[:40]!r} base_eid={base_eid} sub_eid={sub_elem_id} base_is_sub_click={base_is_sub_click} tag={tag}" + chr(10))
++                except Exception:
++                    pass
++        if not base_is_sub_click:
++            _log("passthrough_not_sub_click")
++            return action  # 透传: base 动作不指向 subscribe 控件
++        # base 正要点 subscribe 控件 → 让 A 决定 click vs stop
++        buf = io.BytesIO(); page_screenshot_img.save(buf, format="PNG")
++        img_b64 = base64.b64encode(buf.getvalue()).decode()
++        r = requests.post(ref_url, json={"image_b64": img_b64, "intent": intent,
++            "base_action": {"action_type": "click", "element_id": base_eid},
++            "candidates": [], "page_has_subscribe": True,
++            "subscribe_elem_id": sub_elem_id}, timeout=60)
++        out = r.json()
++        if not out.get("overridden"):
++            _log("refine_no_override")
++            return action
++        ref = out["refined"]
++        if ref.get("action_type") == "stop":
++            na = create_stop_action(""); na["raw_prediction"] = action.get("raw_prediction",""); na["civ_refined"]=True
++            _log("override_stop"); return na
++        if ref.get("action_type") == "click" and ref.get("element_id"):
++            na = create_id_based_action("click ["+str(ref["element_id"])+"]"); na["raw_prediction"]=action.get("raw_prediction",""); na["civ_refined"]=True
++            _log("override_click"); return na
++        _log("refine_nochange"); return action
++
++    def _civ_nav_refine(self, action, trajectory, intent, page_screenshot_img, ref_url):
++        import io, base64, requests, re as _re, os as _os
++        from browser_env.actions import create_id_based_action
++        # 只在 base 动作是 click 一个 comments 链接时介入 (导航目标选择)
++        if not isinstance(action, dict) or action.get("action_type") != 6:
++            return action
++        base_eid = str(action.get("element_id", "")).strip()
++        if not base_eid:
++            return action
++        obs = trajectory[-1].get("observation", {}) if isinstance(trajectory[-1], dict) else {}
++        text_obs = obs.get("text", "") if isinstance(obs, dict) else ""
++        # 从 SoM 文本提取所有 comments 链接候选 id: [id] [A] [N comments]
++        cand_ids = []
++        base_is_comments = False
++        for line in text_obs.splitlines():
++            m = _re.match(r"\s*\[(\d+)\]\s*\[A\]\s*\[(.*)\]\s*$", line)
++            if m and _re.match(r"^\d+\s+comment", m.group(2).strip().lower()):
++                cid = "elem_" + m.group(1)
++                cand_ids.append(cid)
++                if m.group(1) == base_eid:
++                    base_is_comments = True
++        # base 必须是在点一个 comments 链接, 且有 >=2 候选才做导航纠正
++        if not base_is_comments or len(cand_ids) < 2:
++            return action
++        buf = io.BytesIO(); page_screenshot_img.save(buf, format="PNG")
++        img_b64 = base64.b64encode(buf.getvalue()).decode()
++        r = requests.post(ref_url, json={"image_b64": img_b64, "intent": intent,
++            "candidate_ids": cand_ids, "base_target_id": "elem_" + base_eid}, timeout=60)
++        out = r.json()
++        _audit = _os.environ.get("CIV_NAV_AUDIT")
++        if _audit:
++            try:
++                with open(_audit, "a") as _f:
++                    _f.write("override="+str(out.get("overridden"))+" base=elem_"+base_eid+" refined="+str(out.get("refined_id"))+" vno="+str(round(out.get("v_conf_no",0) or 0,3))+" reason="+str(out.get("reason"))+chr(10))
++            except Exception:
++                pass
++        if out.get("overridden") and out.get("refined_id"):
++            rid = str(out["refined_id"]).replace("elem_", "")
++            na = create_id_based_action("click ["+rid+"]"); na["raw_prediction"] = action.get("raw_prediction",""); na["civ_nav_refined"] = True
++            return na
++        return action
++
++    def _civ_stop_refine(self, action, trajectory, intent, page_screenshot_img, meta_data, ref_url):
++        import io, base64, requests, os as _os
++        from browser_env.actions import create_stop_action
++        # 已经是 stop 则不干预
++        if isinstance(action, dict) and action.get("action_type") == 17:
++            return action
++        hist = (meta_data or {}).get("action_history", [])
++        # looping-gate: 最近 K=2 动作重复(同字符串) 或 观测 N 步未变
++        K = int(_os.environ.get("CIV_LOOP_K", "2"))
++        looping = False; reason = ""
++        recent = [h for h in hist if h and h != "None"]
++        if len(recent) >= K:
++            last = recent[-1]
++            if all(x == last for x in recent[-K:]):
++                looping = True; reason = "repeat_action"
++        # 观测未变 (SoM text obs 与上一个 state 相同)
++        if not looping:
++            states = [t for t in trajectory if isinstance(t, dict) and "observation" in t]
++            if len(states) >= 2:
++                a = states[-1]["observation"].get("text", "") if isinstance(states[-1].get("observation"), dict) else ""
++                b = states[-2]["observation"].get("text", "") if isinstance(states[-2].get("observation"), dict) else ""
++                if a and a == b:
++                    looping = True; reason = "obs_unchanged"
++        _audit = _os.environ.get("CIV_STOP_AUDIT")
++        if not looping:
++            return action  # 非 looping 全透传
++        buf = io.BytesIO(); page_screenshot_img.save(buf, format="PNG")
++        img_b64 = base64.b64encode(buf.getvalue()).decode()
++        r = requests.post(ref_url, json={"image_b64": img_b64, "intent": intent, "action_history": recent}, timeout=60)
++        out = r.json()
++        if _audit:
++            try:
++                with open(_audit, "a") as _f:
++                    _f.write("gate="+reason+" should_stop="+str(out.get("should_stop"))+" p_stop="+str(round(out.get("p_stop") or 0,3))+chr(10))
++            except Exception:
++                pass
++        # shadow mode: 记录 V 决策 + Oracle 真实达成判据, 不行动(透传)
++        if _os.environ.get("CIV_STOP_SHADOW") == "1":
++            # Oracle: 当前 URL 是否是帖子详情页 (导航到评论区任务 = 达成). trajectory 里拿不到 page.url,
++            # 用 SoM text obs 是否含 "Comments" 区标志 (详情页有评论输入框/Comments 标题) 做近似判据.
++            obs = trajectory[-1].get("observation", {}) if isinstance(trajectory[-1], dict) else {}
++            tobs = obs.get("text", "") if isinstance(obs, dict) else ""
++            low = tobs.lower()
++            # 详情页判据: 有评论输入 textarea + 'reply'/'post' 评论控件 + 不是列表(无多个 'N comments' 链接)
++            n_comment_links = low.count(" comments]")
++            on_detail = ("[textarea]" in low) and (n_comment_links <= 1) and ("formatting help" in low or "markdown" in low or "reply" in low)
++            if _audit:
++                try:
++                    with open(_audit, "a") as _f:
++                        _f.write("SHADOW gate="+reason+" v_stop="+str(out.get("should_stop"))+" p="+str(round(out.get("p_stop") or 0,3))+" oracle_reached="+str(on_detail)+chr(10))
++                except Exception:
++                    pass
++            return action  # shadow: 不行动
++        if out.get("should_stop"):
++            na = create_stop_action(""); na["raw_prediction"] = action.get("raw_prediction","") if isinstance(action,dict) else ""; na["civ_stop_refined"] = True
++            return na
+         return action
+ 
+     def reset(self, test_config_file: str) -> None:
+diff --git a/evaluation_harness/image_utils.py b/evaluation_harness/image_utils.py
+--- a/evaluation_harness/image_utils.py
++++ b/evaluation_harness/image_utils.py
+@@ -13,7 +13,11 @@
+     device, dtype, model_name: str = "Salesforce/blip2-flan-t5-xl"
+ ) -> callable:
+     if "blip2" in model_name:
+-        captioning_processor = Blip2Processor.from_pretrained(model_name)
++        # (PyPreTokenizerTypeWrapper enum 反序列化报错)
++        try:
++            captioning_processor = Blip2Processor.from_pretrained(model_name)
++        except Exception:
++            captioning_processor = Blip2Processor.from_pretrained(model_name, use_fast=False)
+         captioning_model = Blip2ForConditionalGeneration.from_pretrained(
+             model_name, torch_dtype=dtype
+         )
+diff --git a/llms/providers/openai_utils.py b/llms/providers/openai_utils.py
+--- a/llms/providers/openai_utils.py
++++ b/llms/providers/openai_utils.py
+@@ -254,13 +254,38 @@
+         raise ValueError(
+             "OPENAI_API_KEY environment variable must be set when using OpenAI API."
+         )
+-    response = client.chat.completions.create(
+-        model=model,
+-        messages=messages,
+-        temperature=temperature,
+-        max_tokens=max_tokens,
+-        top_p=top_p,
+-    )
++    # temperature / top_p / max_tokens 参数(400 Unsupported parameter)。
++    # 对这类模型只传 model+messages。
++    _restricted = any(k in model for k in ("gpt-5", "gpt-6", "sol", "luna", "terra"))
++    if _restricted:
++        response = client.chat.completions.create(
++            model=model,
++            messages=messages,
++        )
++    else:
++        response = client.chat.completions.create(
++            model=model,
++            messages=messages,
++            temperature=temperature,
++            max_tokens=max_tokens,
++            top_p=top_p,
++        )
++    _usage_log = os.environ.get("causalact_USAGE_LOG")
++    if _usage_log is not None:
++        try:
++            import json as _json, time as _time
++            u = getattr(response, "usage", None)
++            rec = {
++                "ts": _time.time(),
++                "model": model,
++                "prompt_tokens": getattr(u, "prompt_tokens", None),
++                "completion_tokens": getattr(u, "completion_tokens", None),
++                "total_tokens": getattr(u, "total_tokens", None),
++            }
++            with open(_usage_log, "a") as _f:
++                _f.write(_json.dumps(rec) + chr(10))
++        except Exception:
++            pass
+     answer: str = response.choices[0].message.content
+     return answer
+ 
+diff --git a/llms/tokenizers.py b/llms/tokenizers.py
+--- a/llms/tokenizers.py
++++ b/llms/tokenizers.py
+@@ -7,7 +7,12 @@
+ class Tokenizer(object):
+     def __init__(self, provider: str, model_name: str) -> None:
+         if provider == "openai":
+-            self.tokenizer = tiktoken.encoding_for_model(model_name)
++            try:
++                self.tokenizer = tiktoken.encoding_for_model(model_name)
++            except KeyError:
++                # custom/proxy model names (e.g. gpt-5.6-sol) not in tiktoken map;
++                # fall back to cl100k_base for length accounting only.
++                self.tokenizer = tiktoken.get_encoding("cl100k_base")
+         elif provider == "huggingface":
+             self.tokenizer = LlamaTokenizer.from_pretrained(model_name)
+             # turn off adding special tokens automatically
