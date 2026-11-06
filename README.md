@@ -1,70 +1,59 @@
 <div align="center">
-  <h1>CausalAct</h1>
-  <p><strong>Controlled Visual Interventions for Reliable Agent Actions</strong></p>
+  <h1>CausalAct: Controlled Visual Interventions for Reliable Agent Actions</h1>
   <p>
-    <a href="docs/research-note.md"><img alt="Research note" src="https://img.shields.io/badge/Research-Note-245ca7?style=flat-square"></a>
-    <a href="#experiment-results"><img alt="Experiment results" src="https://img.shields.io/badge/Experiment-Results-236451?style=flat-square"></a>
-    <a href="docs/reproduction.md"><img alt="Reproduction guide" src="https://img.shields.io/badge/Reproduction-Guide-67479c?style=flat-square"></a>
-    <a href="https://github.com/Hik289/causal-act/archive/refs/heads/main.zip"><img alt="Download source" src="https://img.shields.io/badge/Download-Source-9b421e?style=flat-square"></a>
+    <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+    <a href="docs/reproduction.md"><img alt="Python 3.9+" src="https://img.shields.io/badge/Python-3.9%2B-3776AB.svg"></a>
   </p>
-  <p>Research code for testing when visual agents should revise an action and when they should leave it alone.</p>
+  <p>Research code for testing and improving how visual agents respond to changes in their environment.</p>
 </div>
 
+> A visual agent should revise its action when the task state changes, ignore
+> irrelevant appearance changes, and follow the same control when it moves.
+
 <p align="center">
-  <img src="assets/causalact-overview.png" width="100%" alt="CausalAct compares an original forum page with targeted, unrelated, and layout interventions. An environment checker labels valid actions; a refiner learns corrections; a verifier gates whether to apply them.">
+  <img src="assets/causalact-overview.png" width="96%" alt="A forum subscription task across four views. The original requires a click; an already-subscribed state requires stopping; a background change keeps the action; moving the control moves the click.">
 </p>
-
-## At a glance
-
-| Question | What this release contains |
-| :--- | :--- |
-| **Does the agent react to the right evidence?** | Environment-validated subscription interventions, appearance controls, and action metrics. |
-| **Can a small refiner fix the base agent?** | Action-refiner and verifier training, online integrations, and both positive and negative outcomes. |
-| **Where can I start?** | Run the [offline checks](#quick-start), then follow the [reproduction guide](docs/reproduction.md). |
 
 ## Method
 
-1. **Intervene.** Change the application state, appearance, or layout in a controlled environment. Check that the edit actually took effect and label the acceptable actions.
-2. **Refine.** Train a lightweight model on the original and edited observations. A relevant change may invalidate the old action; a purely decorative edit should not. A layout edit can move the click without changing its target.
-3. **Gate.** Let the base agent act by default. Apply a correction when the gate fires; measure both rescued tasks and tasks that the override hurts.
+1. **Intervene.** Change the task state, appearance, or layout in a controlled environment. Check that the change took effect and record the acceptable actions.
+2. **Refine.** Train a lightweight model on paired observations and their action labels. If both states admit the same correct action, no switch is required.
+3. **Gate.** Forward the base agent's proposed action unless the verifier authorizes a correction.
 
-The released experiments use scripted environment edits. Training a learned editor and running the full multi-round expert iteration loop remain research directions.
-
-## Experiment results
-
-| Setting | Base / control | CausalAct or follow-up | What the comparison supports |
-| :--- | ---: | ---: | :--- |
-| Forum subscription, both states correct | 0/48 | **48/48** | Held-out forums. Equal-weight supervision on both states also reaches 48/48; the tested data intervention accounts for the gain. |
-| VisualWebArena forum, eligible Base tasks | 60/161 (37.3%) | — | Single-site baseline. The full VisualWebArena benchmark was not completed. |
-| VisualWebArena forum, live navigation gate | — | **−4.1 pp** | Seven harmed tasks, zero rescued in the override rerun. Offline grounding gains did not transfer. |
-| OSWorld, independent matched rollouts | 75/296 (25.3%) | **58/296 (19.6%)** | **−5.7 pp** under a shared threshold and a 12-step budget. |
-| OSWorld, passthrough accounting | 76/300 (25.3%) | **92/300 (30.7%)** | **+5.3 pp** after reusing the Base outcome on untouched tasks and counting 18 rescues and two harms under per-domain settings. This is a reconstruction, not a fresh end-to-end rollout. |
-| Bench2Drive, Base smoke route | Driving Score 0.00879 | — | One logged route; the vehicle was blocked. No tested CausalAct comparison. |
-
-See the [results audit](docs/results.md) for denominators, provenance, and limitations. The strongest supported finding is the controlled forum result. The desktop results answer different questions and should be reported together.
+The release includes scripted interventions, refiner and verifier training, and benchmark integrations. See the [research note](docs/research-note.md) for the evaluation protocol and its scope.
 
 ## Quick start
 
-The offline checks use the Python standard library and do not require a simulator, a model, or credentials.
+The offline checks use the Python standard library. Live experiments need separate upstream environments and local configuration.
 
 ```bash
 git clone https://github.com/Hik289/causal-act.git
 cd causal-act
 bash scripts/check.sh
-python3 scripts/summarize-results.py
 ```
 
-Live benchmark integration needs separate upstream checkouts and environments. Install the [recorded patches](integrations/) only into clean benchmark checkouts and supply local configuration as described in the [reproduction guide](docs/reproduction.md).
+See the [reproduction guide](docs/reproduction.md) for benchmark setup, data generation, and training.
 
-## Repository map
+## Repository scope
 
 | Path | Contents |
 | :--- | :--- |
-| [`experiments/web/`](experiments/web/) | Intervention builders, browser state checks, causal metrics, training, and VisualWebArena runners |
-| [`experiments/desktop/`](experiments/desktop/) | OSWorld outcome verifiers, replay, gate variants, and task splits |
-| [`experiments/driving/`](experiments/driving/) | CARLA setup, route and Base smoke controller |
-| [`integrations/`](integrations/) | Patches against the recorded upstream revisions |
-| [`results/`](results/) | Aggregate counts and diagnostic metrics |
-| [`docs/`](docs/) | Research note, results audit, and reproduction guide |
+| [`experiments/web/`](experiments/web/) | Forum interventions, environment checks, metrics, and VisualWebArena runners |
+| [`experiments/desktop/`](experiments/desktop/) | OSWorld outcome verifiers, shared-prefix replay, and gate variants |
+| [`experiments/driving/`](experiments/driving/) | CARLA setup, development routes, and a Base smoke controller |
+| [`integrations/`](integrations/) | Patches against recorded upstream revisions |
+| [`scripts/`](scripts/) | Offline checks, benchmark integration, and figure rendering |
 
-Model weights, VM images, raw browser and desktop captures, session files, and execution logs are generated or obtained separately. Benchmark assets and patches remain subject to their upstream terms.
+The original CausalAct code is released under the [MIT License](LICENSE). Upstream benchmark code, patches, and assets remain subject to their respective terms.
+
+## Citation
+
+```bibtex
+@misc{causalact2026,
+  title        = {{CausalAct}: Controlled Visual Interventions for Reliable Agent Actions},
+  author       = {{CausalAct Contributors}},
+  year         = {2026},
+  howpublished = {Research software},
+  url          = {https://github.com/Hik289/causal-act}
+}
+```

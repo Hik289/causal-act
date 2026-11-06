@@ -1,121 +1,111 @@
 #!/usr/bin/env python3
-"""Render the project overview as a high-resolution PNG (requires rsvg-convert)."""
-from pathlib import Path
-from tempfile import TemporaryDirectory
+"""Render the paper-style overview PNG. Requires librsvg (rsvg-convert)."""
 from html import escape
+from pathlib import Path
 import shutil
 import subprocess
+from tempfile import TemporaryDirectory
 
-W, H = 1480, 626
-INK, MUTED = "#142844", "#42546c"
-BLUE = ("#245ca7", "#eef5fe", "#a9c6ec", "#dceafc")
-ORANGE = ("#9b421e", "#fff4ea", "#efc3a8", "#ffe4d1")
-GREEN = ("#236451", "#edf7f2", "#add7c3", "#d9ede1")
-VIOLET = ("#67479c", "#f5effc", "#c9b8e6", "#eadff8")
+W, H = 1360, 536
+INK, SOFT, RULE = "#15243a", "#4d5a6b", "#d8e2ed"
+BLUE, AMBER, GREEN, PURPLE = "#285e90", "#9c4a24", "#306953", "#674b93"
 parts = []
 
-def add(s):
-    parts.append(s)
+def rect(x, y, w, h, fill, stroke="none", radius=0, sw=1.4):
+    parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" '
+                 f'rx="{radius}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>')
 
-def rect(x, y, w, h, fill, stroke="none", r=10, sw=1.3):
-    add(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>')
+def text(x, y, value, size, color=INK, *, serif=False, bold=False, center=False):
+    family = "Georgia, serif" if serif else "Helvetica Neue, Helvetica, sans-serif"
+    anchor = "middle" if center else "start"
+    weight = 700 if bold else 400
+    parts.append(f'<text x="{x}" y="{y}" font-family="{family}" font-size="{size}" '
+                 f'fill="{color}" font-weight="{weight}" text-anchor="{anchor}">{escape(value)}</text>')
 
-def line(x1, y1, x2, y2, color, width=2):
-    add(f'<path d="M{x1} {y1} L{x2} {y2}" fill="none" stroke="{color}" stroke-width="{width}" stroke-linecap="round"/>')
+def path(d, color, width=2, fill="none", dash=""):
+    parts.append(f'<path d="{d}" stroke="{color}" stroke-width="{width}" fill="{fill}" '
+                 f'stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="{dash}"/>')
+
+def dot(x, y, radius, color):
+    parts.append(f'<circle cx="{x}" cy="{y}" r="{radius}" fill="{color}"/>')
 
 def arrow(x1, y, x2, color):
-    line(x1, y, x2, y, color, 2.1)
-    add(f'<path d="M{x2-7} {y-5} L{x2} {y} L{x2-7} {y+5}" fill="none" stroke="{color}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>')
+    path(f"M{x1} {y} H{x2} m-8 -5.5 l8 5.5 l-8 5.5", color, 2.1)
 
-def circle(x, y, radius, fill):
-    add(f'<circle cx="{x}" cy="{y}" r="{radius}" fill="{fill}"/>')
+def browser(x, y, scale=1, *, subscribed=False, backdrop="#f7faff", moved=False):
+    parts.append(f'<g transform="translate({x} {y}) scale({scale})">')
+    rect(0, 0, 374, 164, "#ffffff", "#87a7c2", 10, 1.8)
+    rect(1.4, 1.4, 371.2, 23, "#e9f1f8", radius=8)
+    path("M1 25 H373", "#b6c8da", 1.3)
+    for i in range(3):
+        dot(14+i*10, 13, 2.7, "#9fb5c9")
+    rect(2, 27, 370, 135, backdrop, radius=7)
+    rect(18, 47, 30, 30, "#dbeaf6", radius=7)
+    path("M25 55 h16 v10 h-7 l-5 4 v-4 h-4 z", BLUE, 1.4)
+    text(57, 68, "Science Forum", 19, bold=True)
+    for i, length in enumerate((138, 110, 129)):
+        rect(19, 91+i*14, length, 5, "#c2d1df", radius=2)
+    bx, by = (168, 111) if moved else (222, 50)
+    if moved:
+        path("M223 50 h134 v37 h-134 z", "#9c8abb", 1.4, dash="4 4")
+        path("M352 91 q0 31 -41 37", PURPLE, 1.4, dash="4 4")
+    outline = AMBER if subscribed else PURPLE if moved else BLUE
+    rect(bx-3, by-3, 140, 41, "none", outline, 8, 1.8)
+    rect(bx, by, 134, 35, "#f7e6dc" if subscribed else "#dcebf8", radius=6)
+    text(bx+67, by+23.5, "Subscribed" if subscribed else "Subscribe", 18,
+         AMBER if subscribed else BLUE, bold=True, center=True)
+    parts.append("</g>")
 
-def label(x, y, s, size=16, color=INK, bold=False, middle=False, serif=False, tracking=0):
-    anchor = ' text-anchor="middle"' if middle else ''
-    face = 'Georgia, serif' if serif else 'Helvetica Neue, Helvetica, sans-serif'
-    weight = "700" if bold else "400"
-    add(f'<text x="{x}" y="{y}" font-family="{face}" font-size="{size}" fill="{color}" font-weight="{weight}" letter-spacing="{tracking}"{anchor}>{escape(s)}</text>')
+def draw():
+    parts.clear()
+    parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">')
+    rect(0, 0, W, H, "#ffffff")
+    text(50, 48, "(a) Original state", 34, serif=True)
+    text(602, 48, "(b) Intervention and expected response", 34, serif=True)
+    path("M50 68 H1310", RULE, 1.3)
 
-def check(x, y, color):
-    add(f'<path d="M{x-5} {y} l3.8 4 l7.3 -8" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>')
+    text(50, 142, "Goal: subscribe to this forum", 27, serif=True)
+    browser(50, 168, 1.02)
+    text(50, 378, "Original action", 19, SOFT)
+    text(50, 410, "Click Subscribe", 31, BLUE, serif=True, bold=True)
 
-def pointer(x, y, color):
-    add(f'<path d="M{x} {y} l3 16 4 -5 6 -1 Z" fill="{color}" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>')
+    # Shared task and source state branch into three independently controlled variants.
+    path("M444 252 H530 M530 135 V409", "#7690a8", 2.1)
+    dot(530, 252, 3.8, "#7690a8")
+    cases = (
+        (135, AMBER, "Targeted", "Change subscription state", "Stop", "The goal is already satisfied.",
+         {"subscribed": True}),
+        (272, GREEN, "Unrelated", "Change only the background", "Keep the action", "The goal and control are unchanged.",
+         {"backdrop": "#eaf4e9"}),
+        (409, PURPLE, "Layout", "Move the control", "Move the click", "The same control is in a new place.",
+         {"moved": True}),
+    )
+    for i, (y, color, kind, change, action, reason, kwargs) in enumerate(cases):
+        if i:
+            path(f"M602 {y-69} H1310", RULE, 1.05)
+        arrow(530, y, 581, color)
+        text(602, y-5, kind, 28, color, serif=True, bold=True)
+        text(602, y+23, change, 17, SOFT)
+        browser(834, y-48, 0.58, **kwargs)
+        arrow(1062, y, 1090, color)
+        text(1104, y-3, action, 27, color, serif=True, bold=True)
+        text(1104, y+24, reason, 14, SOFT)
 
-add(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">')
-rect(0,0,W,H,"#ffffff",r=0)
-label(38,35,"CAUSALACT",15,BLUE[0],True,tracking=2.5)
-label(38,80,"Respond to the evidence that changes the decision",41,INK,True,serif=True)
-label(39,112,"One goal, four controlled views. Follow the subscription state; ignore the decoration; track the control.",19,MUTED)
-
-cards = [
-    (38, "01", "Original", "Baseline state", BLUE, "Subscribe", "Click Subscribe", "The goal is not yet satisfied."),
-    (394, "02", "Targeted", "Change the subscription state", ORANGE, "Subscribed", "Stop: already subscribed", "The goal is already satisfied."),
-    (750, "03", "Unrelated", "Change only the background", GREEN, "Subscribe", "Keep the same action", "Decorative changes leave the goal intact."),
-    (1106, "04", "Layout", "Move the same control", VIOLET, "Subscribe", "Click at the new location", "The target moves; its role stays fixed."),
-]
-for i, (x, num, title, desc, theme, button, action, why) in enumerate(cards):
-    c, fill, border, tint = theme
-    rect(x,140,336,280,fill,border,r=15)
-    rect(x+17,155,39,27,tint,r=6)
-    label(x+36.5,174,num,13,c,True,True)
-    label(x+67,176,title,25,c,True)
-    label(x+18,203,desc,16,MUTED)
-    wx, wy = x+18, 219
-    rect(wx,wy,300,122,"#ffffff",border,r=8)
-    rect(wx+1,wy+1,298,20,"#f1f5fa",r=6)
-    for j,color in enumerate(("#b3c0d1","#c3cede","#d0dbe7")):
-        circle(wx+12+9*j,wy+10,2.3,color)
-    line(wx+1,wy+21,wx+299,wy+21,"#dfe6ef",1)
-    rect(wx+2,wy+22,296,98,"#e4f2e8" if i==2 else "#fbfcff",r=4)
-    circle(wx+26,wy+44,11,"#dce8f8")
-    add(f'<path d="M{wx+21} {wy+43} h10 v5 h-4 l-3 2 v-2 h-3 Z" fill="#6b90bc"/>')
-    label(wx+44,wy+49,"Science Forum",15,INK,True)
-    for j,n in enumerate((113,89,102)):
-        rect(wx+16,wy+71+j*11,n,4,"#c4d0df",r=2)
-    bx = wx+167 if i != 3 else wx+137
-    by = wy+38 if i != 3 else wy+75
-    if i==3:
-        add(f'<rect x="{wx+168}" y="{wy+34}" width="112" height="32" rx="7" fill="none" stroke="{border}" stroke-width="1.4" stroke-dasharray="4 4"/>')
-        add(f'<path d="M{wx+278} {wy+62} q4 19 -20 26" fill="none" stroke="{c}" stroke-width="1.6" stroke-dasharray="4 4"/>')
-    rect(bx-3,by-3,118,32,"none",c,r=8,sw=1.5)
-    button_color, button_fill = (c, tint) if i==1 else (BLUE[0], BLUE[3])
-    rect(bx,by,112,26,button_fill,r=5)
-    label(bx+56,by+18,button,13,button_color,True,True)
-    if i != 1:
-        pointer(bx+92,by+17,c)
-    else:
-        check(bx+102,by+13,c)
-    label(x+18,374,action,20,c,True)
-    label(x+18,398,why,14,MUTED)
-
-line(38,446,1442,446,"#dce5ef",1.2)
-label(38,478,"FROM CONTROLLED TESTS TO SELECTIVE CORRECTIONS",14,BLUE[0],True,tracking=1.4)
-bottom = [
-    (38, 438, ORANGE, "I", "Environment edits", "Replay the state and validate the change."),
-    (522, 436, GREEN, "A", "Action refiner", "Learn from the acceptable actions in each view."),
-    (1004, 438, VIOLET, "V", "Verifier gate", "Pass through the base action or apply a correction."),
-]
-for x, w, (c, fill, border, tint), letter, title, desc in bottom:
-    rect(x,493,w,84,fill,border,r=12)
-    rect(x+16,512,45,45,tint,r=10)
-    label(x+38.5,542,letter,23,c,True,True)
-    label(x+75,526,title,21,c,True)
-    label(x+75,551,desc,15,MUTED)
-arrow(483,535,514,BLUE[0])
-arrow(965,535,996,BLUE[0])
-label(740,607,"Illustrative task: subscribe to a forum. The environment determines which actions are acceptable.",14,MUTED,False,True)
-add('</svg>')
+    path("M50 478 H1310", RULE, 1.3)
+    text(680, 513, "Environment checks establish which actions remain valid in each view.",
+         22, SOFT, serif=True, center=True)
+    parts.append("</svg>")
+    return "\n".join(parts)
 
 def main():
     converter = shutil.which("rsvg-convert")
     if not converter:
-        raise SystemExit("Install librsvg (rsvg-convert) to render this figure.")
+        raise SystemExit("Install librsvg (rsvg-convert) to render the figure.")
     output = Path(__file__).resolve().parents[1] / "assets" / "causalact-overview.png"
     output.parent.mkdir(exist_ok=True)
     with TemporaryDirectory() as directory:
         source = Path(directory) / "overview.svg"
-        source.write_text("\n".join(parts), encoding="utf-8")
+        source.write_text(draw(), encoding="utf-8")
         subprocess.run([converter, "-w", str(W * 2), "-h", str(H * 2),
                         "-o", str(output), str(source)], check=True)
 
