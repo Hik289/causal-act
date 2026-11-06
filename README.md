@@ -11,7 +11,7 @@
 > irrelevant appearance changes, and follow the same control when it moves.
 
 <p align="center">
-  <img src="assets/causalact-overview.png" width="96%" alt="A forum subscription task across four views. The original requires a click; an already-subscribed state requires stopping; a background change keeps the action; moving the control moves the click.">
+  <img src="assets/causalact-overview.png" width="96%" alt="Hand-drawn overview of CausalAct: a forum subscription task branches into targeted, unrelated, and layout edits. Environment checks validate the expected actions before training the refiner.">
 </p>
 
 ## Method
@@ -42,7 +42,7 @@ See the [reproduction guide](docs/reproduction.md) for benchmark setup, data gen
 | [`experiments/desktop/`](experiments/desktop/) | OSWorld outcome verifiers, shared-prefix replay, and gate variants |
 | [`experiments/driving/`](experiments/driving/) | CARLA setup, development routes, and a Base smoke controller |
 | [`integrations/`](integrations/) | Patches against recorded upstream revisions |
-| [`scripts/`](scripts/) | Offline checks, benchmark integration, and figure rendering |
+| [`scripts/`](scripts/) | Offline checks, benchmark integration, and an alternate schematic renderer |
 
 The original CausalAct code is released under the [MIT License](LICENSE). Upstream benchmark code, patches, and assets remain subject to their respective terms.
 

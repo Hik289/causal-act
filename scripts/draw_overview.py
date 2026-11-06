@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the paper-style overview PNG. Requires librsvg (rsvg-convert)."""
+"""Render the alternate schematic into .runs/. Requires librsvg (rsvg-convert)."""
 from html import escape
 from pathlib import Path
 import shutil
@@ -101,7 +101,7 @@ def main():
     converter = shutil.which("rsvg-convert")
     if not converter:
         raise SystemExit("Install librsvg (rsvg-convert) to render the figure.")
-    output = Path(__file__).resolve().parents[1] / "assets" / "causalact-overview.png"
+    output = Path(__file__).resolve().parents[1] / ".runs" / "causalact-schematic.png"
     output.parent.mkdir(exist_ok=True)
     with TemporaryDirectory() as directory:
         source = Path(directory) / "overview.svg"
