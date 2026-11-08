@@ -1,11 +1,17 @@
-# Upstream integrations
+# Benchmark setup
 
-Each `.patch` is relative to the revision in its companion `.revision` file.
+Each `.patch` file contains changes needed to connect CausalAct to a benchmark.
+Its matching `.revision` file records the exact benchmark commit to use.
 
-| Integration | Change |
+| Benchmark | Changes |
 | :--- | :--- |
-| VisualWebArena | Refiner hooks and action audit, model adapter and Set-of-Mark drawing fixes |
-| OSWorld | Model dispatch and Docker startup configuration |
-| Bench2Drive | Leaderboard result writer compatibility |
+| VisualWebArena | Add refiner calls and action logs, update model support, and fix the numbered marks drawn on screenshots |
+| OSWorld | Update model selection and Docker startup settings |
+| Bench2Drive | Update how the evaluation code writes results |
 
-Use [the integration installer](../scripts/install-integration.py) with a clean checkout at the recorded revision. The installer checks before applying a patch and adds the corresponding project scripts. Upstream terms apply to each patch and checkout.
+Start with a clean benchmark checkout at the recorded commit. Run the
+[integration installer](../scripts/install-integration.py) to check and apply
+the patch and copy the CausalAct experiment scripts into that checkout. See the
+[reproduction guide](../docs/reproduction.md) for the commands for each benchmark.
+
+The benchmark's terms apply to its checkout and patches.

@@ -2,14 +2,60 @@
 
 *Research note · November 2026*
 
-A visual agent can select the wrong action because it misses an important state change, or because it reacts to a visual change that leaves the task unchanged. CausalAct turns these cases into replayable tests: change the application state, keep the task fixed, and ask an environment checker what can legitimately be done. In a forum subscription task, clicking Subscribe advances the goal if the user is unsubscribed. If the same user is already subscribed, stopping is correct. A background change should not reverse that choice; moving the control should change where the agent clicks.
+A visual agent can miss a state change that matters to the task. It can also
+change its action because of a detail that has no effect on the task. CausalAct
+studies both problems by editing a scene, keeping the goal fixed, and using the
+environment to check which actions are correct.
 
-Each original state can be paired with a targeted edit, an unrelated edit, and a layout edit. The evaluator checks actions against acceptable sets and compares semantically aligned actions across views. This distinction matters: changing a feature does not require a different action when a shared acceptable action remains. When an edit is meant to change real application state, its rendered observation alone does not establish that it worked.
+## A simple example
 
-The implemented pipeline combines scripted interventions, a lightweight action refiner, and an optional verifier gate. Training uses environment labels where available. At execution, the base action passes through when the gate does not propose a correction. The gate's benefit depends on both how often it rescues an error and how often it replaces a correct base action.
+Consider the task "Subscribe to this forum." If the user has not subscribed, the
+agent should click Subscribe. If the user is already subscribed, it should stop.
+Changing the page background should preserve the decision. Moving the control
+should change where the agent clicks.
 
-The most controlled test is a forum-disjoint subscription diagnostic: original-plus-edited correctness rises from 0/48 for the base to 48/48 after paired supervision. Equal-weight supervision on both states also reaches 48/48, so the experiment isolates a benefit of supplying the counterfactual data but does not show an additional benefit from a targeted margin term. The live web navigation experiment is negative. On desktop, a shared-threshold independent comparison is negative, while a per-domain reconstruction that reuses the base outcomes on untouched tasks is positive. These estimates have different protocols and should not be used interchangeably.
+We test three kinds of edits.
 
-The artifact does not establish full-benchmark improvements across domains. The forum and desktop comparisons use one recorded seed; the desktop runs use a 12-step budget. The available driving implementation is a Base smoke test. Full expert iteration, comparative driving evaluation, and broad external baseline replication were not completed.
+| Edit | What changes | What we check |
+| :--- | :--- | :--- |
+| Task state (targeted) | A state that matters to the goal, such as whether the user is subscribed | The action is correct for the new state |
+| Unrelated appearance | A detail such as a decorative background, with the task state preserved | The agent stays correct |
+| Layout | The position of the same control | The action reaches the control at its new position |
 
-See [the results audit](results.md) for exact denominators and [the reproduction guide](reproduction.md) for the runnable entry points.
+For each state, the environment records a set of acceptable actions. An edit can
+leave the same action valid in both states. State checks and execution checks
+confirm that an edit changed the application as intended.
+
+## Training and action checks
+
+The current code uses scripted edits to create training examples. A small action
+refiner learns from the original and edited scenes. An optional verifier checks
+when a correction should replace the base agent's proposed action. This check is
+called a **gate** in the code.
+
+If the gate keeps the original action, the system forwards the base proposal
+directly. A correction can turn a failed task into a success, or turn a success
+into a failure. We count both outcomes when assessing the verifier.
+
+## Work completed
+
+The clearest controlled test uses the same 500M-parameter model before and after
+training on forum subscription states. The training and test sets contain
+different forums. Before training, the model gets both states correct in 0 of
+48 test pairs. After training on both states, it gets both correct in all 48.
+Adding the extra targeted loss term gives the same result.
+
+The live web navigation experiment reduced task success. On desktop, independent
+runs used one shared score threshold to decide when to intervene and reduced
+success. A separate calculation uses a threshold for each application group and
+keeps the recorded base outcomes for tasks without an intervention. It gives a
+positive estimate. The [results report](results.md) explains how each number was
+obtained.
+
+The forum and desktop experiments used one recorded random seed. Desktop runs allowed
+12 steps per task. Driving code supports a short base-agent test. The remaining
+work includes the full benchmark runs, repeated cycles of intervention
+generation and training (expert iteration), comparisons with external methods,
+and a driving comparison with CausalAct enabled.
+
+See the [reproduction guide](reproduction.md) for setup and commands.

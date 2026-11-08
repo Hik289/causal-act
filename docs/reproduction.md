@@ -1,49 +1,70 @@
-# Reproduction guide
+# Setup and experiments
 
-Run commands from the repository root. The benchmark-free check runs with Python 3.9 or newer. Live experiments use separate benchmark and training environments; the original training scripts expect CUDA. CARLA 0.9.15 uses the upstream Python/runtime combination documented by Bench2Drive.
+Run the commands below from the repository root. The repository checks need
+Python 3.9 or newer. Benchmark runs need their own environments, and the training
+scripts expect a CUDA GPU. For CARLA 0.9.15, use the Python version and
+dependencies specified by Bench2Drive.
+
+## Run the repository checks
 
 ```bash
 bash scripts/check.sh
 ```
 
-This checks the intervention schema, causal metrics, and arithmetic in the result summary. It does not rerun the live benchmarks or training.
+This checks the format of intervention records, the action metrics, and the
+calculations in the results summary. Running benchmarks or training models
+requires the setup below.
 
-## Local configuration
+## Configure local paths and model access
 
-Use a clean clone for each benchmark. The experiment launcher resolves paths relative to this checkout, even when called from another directory. Override them with environment variables as needed.
+Create a separate clone for each benchmark. The experiment launcher finds files
+relative to this repository, even when you call it from another directory.
+Use these environment variables to change the paths or model settings.
 
-| Variable | Default / purpose |
+| Variable | Default or purpose |
 | :--- | :--- |
-| `CAUSALACT_RUN_DIR` | `.runs/`; generated datasets, screenshots, outputs, and local checkpoints |
+| `CAUSALACT_RUN_DIR` | `.runs/` stores generated data, screenshots, results, and model checkpoints |
 | `CAUSALACT_VWA_DIR` | `.vendor/VisualWebArena` |
-| `CAUSALACT_VWA_AUTH` | The local forum state at `.auth/reddit_state.json` inside the VisualWebArena checkout |
+| `CAUSALACT_VWA_AUTH` | `.auth/reddit_state.json` inside the VisualWebArena checkout stores the local forum login state |
 | `CAUSALACT_OSWORLD_DIR` | `.vendor/OSWorld` |
 | `CAUSALACT_BENCH2DRIVE_DIR` | `.vendor/Bench2Drive` |
 | `CAUSALACT_CARLA_DIR` | `.vendor/CARLA` |
-| `CAUSALACT_BASE_MODEL` | The recorded model label is `gpt-5.6-sol`; set a compatible model in your own setup |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Supply your own credential and, if needed, endpoint. The driving smoke requires an explicit endpoint. |
+| `CAUSALACT_BASE_MODEL` | The recorded model label is `gpt-5.6-sol`. Set a model supported by your service. |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | Set your own API credential and service URL as needed. The short driving test requires an explicit service URL. |
 
-The original experiments used a compatible model service. Model availability, server behavior, and rerun determinism are not guaranteed by this repository. Training and dataset generation do not require the recorded base service unless the selected script explicitly queries it.
+The original runs used a compatible model service with the recorded label.
+Choose a service and model available in your setup. Training and data
+generation need the base service only when the selected script calls it.
 
-## VisualWebArena and forum intervention tests
+## VisualWebArena and forum tests
 
-1. Follow the [upstream setup](https://github.com/web-arena-x/visualwebarena) to create a local forum instance, set the upstream site variables and any required reset credentials, and install the benchmark dependencies. Create a fresh benchmark login state locally.
-2. Check out the recorded [revision](../integrations/visualwebarena.revision), then apply the integration:
+1. Follow the [VisualWebArena setup](https://github.com/web-arena-x/visualwebarena)
+   to create a local forum, set the site variables and any required reset
+   credentials, and install dependencies. Log in to create a fresh local
+   browser session.
+2. Check out the commit listed in
+   [visualwebarena.revision](../integrations/visualwebarena.revision), then
+   apply the CausalAct changes.
 
    ```bash
    python3 scripts/install-integration.py visualwebarena .vendor/VisualWebArena
    ```
 
-3. With Playwright installed and Chromium available, generate the targeted examples and check the forum oracles:
+3. Install Playwright and Chromium. Use a disposable forum instance for the
+   following commands because they change subscription state. Run the state
+   checks (called **oracles** in the code), then generate the targeted examples.
 
    ```bash
    bash scripts/run-experiment.sh experiments/web/causalact/oracle/validate_oracles.py
    bash scripts/run-experiment.sh experiments/web/causalact/data/build_target_set.py
    ```
 
-   Run state-changing probes on a disposable benchmark instance. The generated JSONL contains references to the generated images.
+   The generated JSONL records include paths to the generated images.
 
-4. In a CUDA training environment, install the dependencies in [requirements-training.txt](../requirements-training.txt) and compare original-only and paired training:
+4. In a CUDA environment, install
+   [requirements-training.txt](../requirements-training.txt). Compare training
+   on original states, training on both states, and training on both states with
+   an extra penalty for choosing an action that has become wrong.
 
    ```bash
    bash scripts/run-experiment.sh experiments/web/causalact/modules/train_a_ltarget.py \
@@ -54,32 +75,58 @@ The original experiments used a compatible model service. Model availability, se
      --mode lact_ltarget --out .runs/web/checkpoints/paired-margin
    ```
 
-The [Web folder](../experiments/web/) also contains the unrelated and navigation builders, learned services, and historical Bash launchers. Some launchers were written for separate worker GPUs and the original model/benchmark environment. Set GPU visibility, task ranges, and endpoints for your own installation before using them. Keep the Base and refiner observations identical for matched grounding diagnostics.
+The [web folder](../experiments/web/) also has scripts for unrelated edits,
+navigation examples, model services, and experiment runs. Some older launchers
+expect multiple GPUs and the model and benchmark setup used in the original
+runs. Set the GPU visibility, task range, and service URLs for your machine.
+
+When comparing how the base and refiner select a target, give them the same
+screenshots, numbered marks, and candidate descriptions.
 
 ## OSWorld
 
-Use the [upstream OSWorld instructions](https://github.com/xlang-ai/OSWorld) to set up a disposable VM or Docker provider. Check out the [recorded revision](../integrations/osworld.revision) and run:
+Follow the [OSWorld setup](https://github.com/xlang-ai/OSWorld) to create a
+disposable VM or Docker environment. Check out the commit listed in
+[osworld.revision](../integrations/osworld.revision), then apply the patch and
+run the short setup check.
 
 ```bash
 python3 scripts/install-integration.py osworld .vendor/OSWorld
 bash scripts/run-experiment.sh experiments/desktop/osworld_smoke.py
 ```
 
-The [desktop scripts](../experiments/desktop/) include Base runs, outcome-data construction, verifier training, shared-prefix replay, gating variants, and benchmark-ID task shards. Outcome training consumes screenshots and labels generated by your own run. Historical launchers expect pre-existing Base trajectories for replay and, where applicable, a running local verifier. They are reference configurations rather than portable one-click runs.
+The [desktop folder](../experiments/desktop/) includes base-agent runs, scripts
+that collect screenshots and outcome labels, verifier training, and replay
+experiments. It also includes task lists split into groups for separate workers.
+Use data from your own runs to train the outcome verifier. Older replay
+launchers expect saved base runs and, where used, a running local verifier.
+Adjust their settings to your setup.
 
-For the independent comparison, match the same task IDs and report both successes and rescue/harm counts. For shared-prefix replay, record the exact branch point, preserve the base trajectory up to that point, and mark reconstructed untouched outcomes explicitly. See [results.md](results.md) for the two protocols and their limitations.
+For independent runs, compare the same task IDs and count both failed tasks that
+become successful and successful tasks that become failures. For replay runs,
+record the step where the correction starts and keep the saved base run up to
+that step. State explicitly when a result is calculated by reusing base outcomes
+on tasks where no correction was made. The [results report](results.md) explains
+both calculations.
 
-## Bench2Drive / CARLA
+## Bench2Drive and CARLA
 
-Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive) and CARLA 0.9.15 with the matching maps and Python dependencies. Check out the [recorded revision](../integrations/bench2drive.revision), apply the integration, start the simulator, and run:
+Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive), CARLA 0.9.15,
+the matching maps, and the required Python packages. Check out the commit listed
+in [bench2drive.revision](../integrations/bench2drive.revision), apply the patch,
+and start the simulator before running the base agent.
 
 ```bash
 python3 scripts/install-integration.py bench2drive .vendor/Bench2Drive
 bash scripts/run-experiment.sh experiments/driving/run_b2d.sh base
 ```
 
-This is a short Base smoke test. It does not implement or validate a CausalAct driving override.
+This runs a short test of the base driving agent. Comparing CausalAct driving
+corrections requires further implementation and evaluation.
 
-## Release contents
+## Files in this release
 
-The repository contains experiment source and benchmark patches, documented aggregate results, and the overview PNG. Raw screenshots, browser sessions, benchmark caches, VM disks, model weights, provider configuration values, and private operation logs are outside the release. Upstream repositories retain their own terms.
+The release includes experiment code, benchmark patches, recorded result counts,
+and the overview PNG. Generate screenshots, login sessions, benchmark caches,
+VM disks, model checkpoints, and local logs in your own environment. Configure
+model access locally. Each benchmark retains its own terms.
