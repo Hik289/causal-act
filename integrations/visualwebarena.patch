@@ -1,7 +1,8 @@
 diff --git a/agent/agent.py b/agent/agent.py
+index 5fbcba9..681b390 100644
 --- a/agent/agent.py
 +++ b/agent/agent.py
-@@ -116,7 +116,15 @@
+@@ -116,7 +116,15 @@ class PromptAgent(Agent):
          self.captioning_fn = captioning_fn
  
          # Check if the model is multimodal.
@@ -18,7 +19,7 @@ diff --git a/agent/agent.py b/agent/agent.py
              self.multimodal_inputs = True
          else:
              self.multimodal_inputs = False
-@@ -195,6 +203,191 @@
+@@ -195,6 +203,246 @@ class PromptAgent(Agent):
                      action["raw_prediction"] = response
                      break
  
@@ -48,6 +49,13 @@ diff --git a/agent/agent.py b/agent/agent.py
 +            except Exception as _e:
 +                import sys as _sys
 +                print("[civ_stop] passthrough on error:", _e, file=_sys.stderr, flush=True)
++        _wv_url = _os.environ.get("CIV_WEB_VGATE_URL")
++        if _wv_url and self.multimodal_inputs:
++            try:
++                action = self._civ_web_vgate(action, trajectory, intent, page_screenshot_img, meta_data, _wv_url)
++            except Exception as _e:
++                import sys as _sys
++                print("[civ_webv] passthrough on error:", _e, file=_sys.stderr, flush=True)
 +        if _pt_log is not None and _base_act_sig is not None:
 +            _final_sig = (action.get("action_type"), str(action.get("element_id","")), str(action.get("answer",""))) if isinstance(action, dict) else None
 +            try:
@@ -57,6 +65,54 @@ diff --git a/agent/agent.py b/agent/agent.py
 +            except Exception:
 +                pass
 +        return action
++
++    def _civ_web_vgate(self, action, trajectory, intent, page_screenshot_img, meta_data, wv_url):
++        """Query web outcome-V; if P(fail)>=tau, inject 'change approach' nudge and re-predict once.
++        Mirrors desktop V-gated refiner. Passthrough (byte-identical) when V says ok."""
++        import io, base64, json, os as _os, urllib.request
++        tau=float(_os.environ.get("CIV_WEB_VTAU","0.9"))
++        audit=_os.environ.get("CIV_WEB_VAUDIT")
++        # last action string for V context
++        act_str = str(action.get("raw_prediction",""))[:200] if isinstance(action,dict) else ""
++        _pim=page_screenshot_img.convert("RGB") if page_screenshot_img.mode!="RGB" else page_screenshot_img
++        bio=io.BytesIO(); _pim.save(bio,format="JPEG",quality=70)
++        b64=base64.b64encode(bio.getvalue()).decode()
++        pf=None
++        try:
++            req=urllib.request.Request(wv_url,data=json.dumps({"screenshot_b64":b64,"action":act_str}).encode(),
++                                       headers={"Content-Type":"application/json"})
++            with urllib.request.urlopen(req,timeout=30) as r: pf=json.loads(r.read())["p_fail"]
++        except Exception: pf=None
++        fire = (pf is not None and pf>=tau)
++        if audit:
++            try:
++                with open(audit,"a") as _f: _f.write(f"pf={pf} fire={fire} tau={tau}\n")
++            except Exception: pass
++        if not fire:
++            return action  # passthrough identity
++        # re-predict with nudge appended to intent
++        nudge=("\n\n[SYSTEM HINT] The current approach appears likely to fail. Reconsider: "
++               "re-examine the page for the correct element, try a different navigation path, "
++               "or use search/filters. Avoid repeating the same ineffective action.")
++        try:
++            if self.multimodal_inputs:
++                prompt2=self.prompt_constructor.construct(trajectory, intent+nudge, page_screenshot_img, None, meta_data)
++            else:
++                prompt2=self.prompt_constructor.construct(trajectory, intent+nudge, meta_data)
++            from agent.agent import call_llm as _cl
++        except Exception:
++            pass
++        try:
++            resp2=call_llm(self.lm_config, prompt2)
++            fp=self.prompt_constructor.instruction["meta_data"].get("force_prefix","")
++            resp2=f"{fp}{resp2}"
++            parsed=self.prompt_constructor.extract_action(resp2)
++            from browser_env.actions import create_id_based_action
++            act2=create_id_based_action(parsed)
++            act2["raw_prediction"]=resp2
++            return act2
++        except Exception:
++            return action
 +
 +    def _civ_refine(self, action, trajectory, intent, page_screenshot_img, ref_url):
 +        import io, base64, requests, os as _os
@@ -211,9 +267,10 @@ diff --git a/agent/agent.py b/agent/agent.py
  
      def reset(self, test_config_file: str) -> None:
 diff --git a/evaluation_harness/image_utils.py b/evaluation_harness/image_utils.py
+index da6782e..bf27e46 100644
 --- a/evaluation_harness/image_utils.py
 +++ b/evaluation_harness/image_utils.py
-@@ -13,7 +13,11 @@
+@@ -13,7 +13,11 @@ def get_captioning_fn(
      device, dtype, model_name: str = "Salesforce/blip2-flan-t5-xl"
  ) -> callable:
      if "blip2" in model_name:
@@ -227,9 +284,10 @@ diff --git a/evaluation_harness/image_utils.py b/evaluation_harness/image_utils.
              model_name, torch_dtype=dtype
          )
 diff --git a/llms/providers/openai_utils.py b/llms/providers/openai_utils.py
+index d657ef6..7816aea 100644
 --- a/llms/providers/openai_utils.py
 +++ b/llms/providers/openai_utils.py
-@@ -254,13 +254,38 @@
+@@ -254,13 +254,38 @@ def generate_from_openai_chat_completion(
          raise ValueError(
              "OPENAI_API_KEY environment variable must be set when using OpenAI API."
          )
@@ -276,9 +334,10 @@ diff --git a/llms/providers/openai_utils.py b/llms/providers/openai_utils.py
      return answer
  
 diff --git a/llms/tokenizers.py b/llms/tokenizers.py
+index 53d3858..c547012 100644
 --- a/llms/tokenizers.py
 +++ b/llms/tokenizers.py
-@@ -7,7 +7,12 @@
+@@ -7,7 +7,12 @@ from transformers import LlamaTokenizer  # type: ignore
  class Tokenizer(object):
      def __init__(self, provider: str, model_name: str) -> None:
          if provider == "openai":
@@ -292,3 +351,23 @@ diff --git a/llms/tokenizers.py b/llms/tokenizers.py
          elif provider == "huggingface":
              self.tokenizer = LlamaTokenizer.from_pretrained(model_name)
              # turn off adding special tokens automatically
+diff --git a/run.py b/run.py
+index 7a48a2e..990bc56 100644
+--- a/run.py
++++ b/run.py
+@@ -493,6 +493,15 @@ def prepare(args: argparse.Namespace) -> None:
+ 
+ 
+ def get_unfinished(config_files: list[str], result_dir: str) -> list[str]:
++    if os.environ.get("CAUSALACT_FORUM_RESUME") == "1":
++        import re
++
++        output = Path(result_dir)
++        log = output.with_suffix(".log")
++        text = log.read_text(errors="replace") if log.exists() else ""
++        completed = set(re.findall(r"\[Result\] \((?:PASS|FAIL)\) [^\n]*?/(\d+)\.json", text))
++        return [config for config in config_files if Path(config).stem not in completed]
++
+     result_files = glob.glob(f"{result_dir}/*.html")
+     task_ids = [
+         os.path.basename(f).split(".")[0].split("_")[1] for f in result_files

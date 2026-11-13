@@ -36,6 +36,24 @@ The original runs used a compatible model service with the recorded label.
 Choose a service and model available in your setup. Training and data
 generation need the base service only when the selected script calls it.
 
+### Optional Bedrock adapter
+
+The adapter translates Chat Completions requests into Bedrock Messages requests.
+Set `AWS_BEARER_TOKEN_BEDROCK` to your Bedrock credential,
+`CAUSALACT_BEDROCK_MODEL` to the model ID, and `OPENAI_API_KEY` to a separate
+local client credential. Set `AWS_REGION` or `CAUSALACT_BEDROCK_PROFILE` if your
+Bedrock configuration requires them. The adapter accepts up to eight
+simultaneous upstream requests and binds to loopback.
+
+```bash
+python3 experiments/services/bedrock_relay.py .runs/bedrock
+```
+
+In the shell that launches the experiments, set `OPENAI_BASE_URL` to
+`http://127.0.0.1:18822/v1` and use the same local client credential.
+OSWorld and VisualWebArena can use their existing planner label with this
+adapter, which sends every request to the configured Bedrock model.
+
 ## VisualWebArena and forum tests
 
 1. Follow the [VisualWebArena setup](https://github.com/web-arena-x/visualwebarena)
@@ -83,6 +101,30 @@ runs. Set the GPU visibility, task range, and service URLs for your machine.
 When comparing how the base and refiner select a target, give them the same
 screenshots, numbered marks, and candidate descriptions.
 
+### Run the 170-task forum comparison
+
+Prepare the locally configured forum task JSON using the VisualWebArena setup.
+The preparation command preserves the recorded task selection and order. Start
+the outcome verifier with a trained web checkpoint. The same verifier server
+used for desktop accepts a different checkpoint through `CIV_VCKPT`.
+
+```bash
+bash scripts/run-experiment.sh experiments/web/prepare_forum_pair.py \
+  .vendor/VisualWebArena/config_files/vwa/test_reddit.json .runs/forum/tasks
+
+CIV_VCKPT=/path/to/web/checkpoint CIV_VPORT=18834 \
+  PYTHONPATH=experiments python3 experiments/desktop/v_server.py
+```
+
+In a separate shell with VisualWebArena and model access configured, run both
+arms. Keep `REDDIT` and the local browser session configured for your checkout.
+
+```bash
+CIV_WEB_VGATE_URL=http://127.0.0.1:18834/pfail \
+  bash scripts/run-experiment.sh experiments/web/run_forum_pair.sh \
+  .runs/forum/tasks .runs/forum/comparison
+```
+
 ## OSWorld
 
 Follow the [OSWorld setup](https://github.com/xlang-ai/OSWorld) to create a
@@ -109,6 +151,31 @@ that step. State explicitly when a result is calculated by reusing base outcomes
 on tasks where no correction was made. The [results report](results.md) explains
 both calculations.
 
+### Run the fixed desktop replay comparisons
+
+Start `experiments/desktop/v_server.py` in the verifier environment with
+`CIV_VCKPT` set to the verifier checkpoint directory. The
+[recorded checkpoint](../experiments/desktop/paired_replay/recorded_checkpoint.json)
+identifies the weights selected in the original run. In the OSWorld environment,
+run the timing comparison or select `--protocol calibration` for the earlier
+three-arm comparison.
+
+```bash
+bash scripts/run-experiment.sh experiments/desktop/paired_replay/run_protocol.py \
+  "$PWD/.runs/desktop/timing" --checkpoint /path/to/checkpoint/model.safetensors
+```
+
+Both use fixed 24-task manifests and a 12-step budget. The timing comparison
+uses a separate held-out manifest and follows the recorded Base action schedule
+up to the first intervention. Reuse the output directory to resume tasks
+without a score. The report counts only tasks with scores in every arm.
+
+The `run_agent_s2.py` and `run_agent_s3.py` entry points use the corresponding
+Agent S package and OSWorld runner arguments. Set `CAUSALACT_GROUNDER_URL` to
+a compatible UI-TARS service, and `CIV_S2_MEMORY_DIR` to a writable directory
+for the S2 worker. Use separate result directories and memory folders for each
+shard.
+
 ## Bench2Drive and CARLA
 
 Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive), CARLA 0.9.15,
@@ -121,8 +188,44 @@ python3 scripts/install-integration.py bench2drive .vendor/Bench2Drive
 bash scripts/run-experiment.sh experiments/driving/run_b2d.sh base
 ```
 
-This runs a short test of the base driving agent. Comparing CausalAct driving
-corrections requires further implementation and evaluation.
+The command above runs the original short Base smoke test. To run the
+paired protocol, activate the Bench2Drive environment and generate the splits
+from the official route files.
+
+```bash
+python3 experiments/driving/paired/split.py \
+  .vendor/Bench2Drive/leaderboard/data .runs/driving/splits
+
+bash scripts/run-experiment.sh experiments/driving/paired/run.py \
+  .runs/driving/splits .runs/driving/comparison
+```
+
+The paired runner starts its own simulator and uses a fixed controller in
+both arms. The CausalAct arm adds a second model query to check stopping
+evidence. The runner starts the disjoint 100-route holdout after all 20
+validation routes have valid pairs and the mean paired Driving Score improves.
+The recorded split includes the route IDs and XML hashes. Set
+`CARLA_GRAPHICS_ADAPTER`, `CARLA_PORT`, or `CARLA_TM_PORT` to select local
+simulator resources. Run this protocol only in CARLA.
+
+## ScreenSpot-Pro
+
+The two evaluators report point hits against the annotated bounding boxes,
+grouped by target area. Install Pillow and `huggingface_hub` for the download
+and the generic vision-model evaluator. The UI-TARS evaluator also needs the
+model's image processor and its Transformers dependencies.
+
+```bash
+python3 experiments/grounding/download.py .runs/screenspot
+bash scripts/run-experiment.sh experiments/grounding/point_eval.py .runs/screenspot
+bash scripts/run-experiment.sh experiments/grounding/uitars_eval.py \
+  /path/to/ui-tars-processor .runs/screenspot/dataset .runs/screenspot/uitars
+```
+
+Set `CAUSALACT_GROUNDER_URL` for the UI-TARS endpoint and
+`CAUSALACT_GROUNDER_KEY` if it requires a credential. The UI-TARS evaluation
+uses a 640-pixel maximum image edge. Both scripts keep their point predictions
+locally and allow API errors to be retried.
 
 ## Files in this release
 

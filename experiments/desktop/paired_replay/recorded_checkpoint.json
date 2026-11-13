@@ -1,0 +1,12 @@
+{
+  "validation_selected_training_epoch": 3,
+  "epoch_log_index": 2,
+  "validation_failure_precision": 0.9158878504672897,
+  "weights_sha256": "8d02c20384d56f66cc4c96539aac5fbd261cbe3c9b4d397657737e1d906c07b6",
+  "gate_min_consecutive_score": 0.97,
+  "alternative_benefit_head": {
+    "epoch": 1,
+    "validation_net": 1,
+    "heldout_net": 0
+  }
+}

@@ -1,7 +1,8 @@
 diff --git a/desktop_env/providers/docker/provider.py b/desktop_env/providers/docker/provider.py
+index ac22789..e662b1b 100644
 --- a/desktop_env/providers/docker/provider.py
 +++ b/desktop_env/providers/docker/provider.py
-@@ -17,7 +17,7 @@
+@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
  
  WAIT_TIME = 3
  RETRY_INTERVAL = 1
@@ -10,7 +11,7 @@ diff --git a/desktop_env/providers/docker/provider.py b/desktop_env/providers/do
  
  
  class PortAllocationError(Exception):
-@@ -48,7 +48,7 @@
+@@ -48,7 +48,7 @@ def _is_unsupported_capabilities_error(error: Exception) -> bool:
  
  class DockerProvider(Provider):
      def __init__(self, region: str):
@@ -19,10 +20,59 @@ diff --git a/desktop_env/providers/docker/provider.py b/desktop_env/providers/do
          self.server_port = None
          self.vnc_port = None
          self.chromium_port = None
+@@ -124,11 +124,13 @@ class DockerProvider(Provider):
+         
+         try:
+             with lock:
+-                # Allocate all required ports
+-                self.vnc_port = self._get_available_port(8006)
+-                self.server_port = self._get_available_port(5000)
+-                self.chromium_port = self._get_available_port(9222)
+-                self.vlc_port = self._get_available_port(8080)
++                # Let Docker reserve an available host port for each service when requested.
++                dynamic_ports = os.environ.get("CIV_DOCKER_DYNAMIC_PORTS") == "1"
++                if not dynamic_ports:
++                    self.vnc_port = self._get_available_port(8006)
++                    self.server_port = self._get_available_port(5000)
++                    self.chromium_port = self._get_available_port(9222)
++                    self.vlc_port = self._get_available_port(8080)
+ 
+                 # Start container while still holding the lock
+                 # Check if KVM is available
+@@ -151,10 +153,10 @@ class DockerProvider(Provider):
+                         }
+                     },
+                     "ports": {
+-                        8006: self.vnc_port,
+-                        5000: self.server_port,
+-                        9222: self.chromium_port,
+-                        8080: self.vlc_port
++                        8006: ("127.0.0.1", None) if dynamic_ports else self.vnc_port,
++                        5000: ("127.0.0.1", None) if dynamic_ports else self.server_port,
++                        9222: ("127.0.0.1", None) if dynamic_ports else self.chromium_port,
++                        8080: ("127.0.0.1", None) if dynamic_ports else self.vlc_port
+                     },
+                     "detach": True
+                 }
+@@ -184,6 +186,13 @@ class DockerProvider(Provider):
+                 # Retain the container before starting it. A failed start must
+                 # never trigger another create, and must not leak this container.
+                 self.container.start()
++                if dynamic_ports:
++                    self.container.reload()
++                    bindings = self.container.attrs["NetworkSettings"]["Ports"]
++                    self.vnc_port, self.server_port, self.chromium_port, self.vlc_port = (
++                        int(bindings[f"{port}/tcp"][0]["HostPort"])
++                        for port in (8006, 5000, 9222, 8080)
++                    )
+ 
+             logger.info(f"Started container with ports - VNC: {self.vnc_port}, "
+                        f"Server: {self.server_port}, Chrome: {self.chromium_port}, VLC: {self.vlc_port}")
 diff --git a/mm_agents/agent.py b/mm_agents/agent.py
+index 592e4c4..61b5112 100644
 --- a/mm_agents/agent.py
 +++ b/mm_agents/agent.py
-@@ -629,6 +629,9 @@
+@@ -629,6 +629,9 @@ class PromptAgent:
              else:
                  return response.json()['choices'][0]['message']['content']
          elif self.model.startswith("gpt"):

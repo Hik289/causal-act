@@ -1,0 +1,34 @@
+{
+  "chrome": [
+    "9f935cce-0a9f-435f-8007-817732bfc0a5",
+    "b7895e80-f4d1-4648-bee0-4eb45a6f1fa8",
+    "1704f00f-79e6-43a7-961b-cedd3724d5fd",
+    "bb5e4c0d-f964-439c-97b6-bdb9747de3f4",
+    "7b6c7e24-c58a-49fc-a5bb-d57b80e5b4c3",
+    "cabb3bae-cccb-41bd-9f5d-0f3a9fecd825"
+  ],
+  "libreoffice_calc": [
+    "7e429b8d-a3f0-4ed0-9b58-08957d00b127",
+    "37608790-6147-45d0-9f20-1137bb35703d",
+    "30e3e107-1cfb-46ee-a755-2cd080d7ba6a",
+    "7efeb4b1-3d19-4762-b163-63328d66303b",
+    "ecb0df7a-4e8d-4a03-b162-053391d3afaf",
+    "eb03d19a-b88d-4de4-8a64-ca0ac66f426b"
+  ],
+  "libreoffice_impress": [
+    "af23762e-2bfd-4a1d-aada-20fa8de9ce07",
+    "edb61b14-a854-4bf5-a075-c8075c11293a",
+    "e4ef0baf-4b52-4590-a47e-d4d464cca2d7",
+    "5c1a6c3d-c1b3-47cb-9b01-8d1b7544ffa1",
+    "ce88f674-ab7a-43da-9201-468d38539e4a",
+    "5cfb9197-e72b-454b-900e-c06b0c802b40"
+  ],
+  "os": [
+    "4d117223-a354-47fb-8b45-62ab1390a95f",
+    "c288e301-e626-4b98-a1ab-159dcb162af5",
+    "37887e8c-da15-4192-923c-08fa390a176d",
+    "3ce045a0-877b-42aa-8d2c-b4a863336ab8",
+    "4783cc41-c03c-4e1b-89b4-50658f642bd5",
+    "5c1075ca-bb34-46a3-a7a0-029bd7463e79"
+  ]
+}

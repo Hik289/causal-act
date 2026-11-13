@@ -14,6 +14,13 @@
   <img src="assets/causalact-overview.png" width="96%" alt="A forum subscription task with three edits. Changing the subscription state changes whether to click. Changing the background preserves the action. Moving the button changes where to click.">
 </p>
 
+## Recent Commit
+
+**November 13, 2026** — Added paired OSWorld replay with timing controls,
+Bench2Drive validation and holdout runs, and ScreenSpot-Pro point evaluation.
+This update also includes the forum comparison runner and an optional Bedrock
+adapter. [Commit history](https://github.com/Hik289/causal-act/commits/main/)
+
 ## How it works
 
 Suppose the task is to subscribe to a forum. The agent should click **Subscribe**
@@ -51,7 +58,8 @@ To set up benchmarks, generate data, or train a model, follow the
 | :--- | :--- |
 | [`experiments/web/`](experiments/web/) | Forum edits, state checks, evaluation metrics, and VisualWebArena runs |
 | [`experiments/desktop/`](experiments/desktop/) | OSWorld runs, verifier training, and experiments that replay a base run before testing a correction |
-| [`experiments/driving/`](experiments/driving/) | CARLA setup, test routes, and a short run that checks whether the base driving agent works |
+| [`experiments/driving/`](experiments/driving/) | CARLA setup, a base-agent smoke test, and paired Bench2Drive evaluation |
+| [`experiments/grounding/`](experiments/grounding/) | ScreenSpot-Pro point evaluation for a vision model and UI-TARS |
 | [`integrations/`](integrations/) | Changes needed to connect this code to specific versions of the benchmarks |
 | [`scripts/`](scripts/) | Repository checks, setup tools, and an alternative overview diagram |
 
