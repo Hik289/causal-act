@@ -56,20 +56,11 @@ class AgentS2Wrapper:
         )
 
     def predict(self, instruction: str, obs: dict):
-        import numpy as np
-        import base64
-        import io
-        from PIL import Image
+        from s2_repair_runtime import screenshot_image_bytes
 
         cur_obs = obs.copy()
         scr = cur_obs.get("screenshot")
-        if isinstance(scr, np.ndarray):
-            img = Image.fromarray(scr)
-            bio = io.BytesIO()
-            img.save(bio, format="PNG")
-            cur_obs["screenshot"] = base64.b64encode(bio.getvalue()).decode("utf-8")
-        elif isinstance(scr, bytes):
-            cur_obs["screenshot"] = base64.b64encode(scr).decode("utf-8")
+        cur_obs["screenshot"] = screenshot_image_bytes(scr)
 
         res_dict, actions = self.agent.predict(instruction, cur_obs)
         # Agent S2 predicts string actions for pyautogui

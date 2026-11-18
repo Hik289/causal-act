@@ -185,6 +185,14 @@ setting in the run manifest. If recovering an existing run, preserve its scored
 tasks and memory, resume only unscored tasks, and report the capture change as an
 environment difference.
 
+Agent S2's OCR text actions require native image bytes. Keep those bytes in the
+observation and let its model client encode them for transport. The wrapper
+normalizes older base64 observations without changing the model's encoded image
+payload. Install the `tesseract` executable and its language data in the worker
+environment before using text actions. Missing OCR dependencies or screenshot
+type errors are infrastructure failures; retain their raw scores and logs as
+invalid and resume those tasks after fixing the environment.
+
 ## Bench2Drive and CARLA
 
 Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive), CARLA 0.9.15,

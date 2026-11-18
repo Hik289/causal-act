@@ -22,8 +22,10 @@ HTTP startup, and prepare the original evaluator's dependencies from cached
 Ubuntu packages. Oversized Web images now use the relay's existing encoder
 before its ingress size check, preserving pixel dimensions. Documented explicit
 screenshot capture for S2 so unused accessibility reads cannot delay its actions;
-recovery preserves scored tasks and records the environment change. Validation includes
-eight unit tests, opening the original Calc task file through its original
+recovery preserves scored tasks and records the environment change. Agent S2 now
+retains image bytes for OCR text actions while preserving the encoded image sent
+to the model. Validation includes thirteen unit tests, a real OCR check, opening
+the original Calc task file through its original
 endpoint, running the original dependency installation command, and sending the
 previously rejected input images successfully to Bedrock.
 [Commit history](https://github.com/Hik289/causal-act/commits/main/)

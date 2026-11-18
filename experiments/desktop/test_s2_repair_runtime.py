@@ -1,4 +1,6 @@
 import json
+import base64
+from io import BytesIO
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -8,8 +10,46 @@ from s2_repair_runtime import (
     bounded_dag_generator,
     checked_dag_parser,
     prepare_expect_dependency,
+    screenshot_image_bytes,
     wait_for_desktop,
 )
+
+
+class ScreenshotInputTests(unittest.TestCase):
+    def setUp(self):
+        from PIL import Image
+        buffer = BytesIO()
+        Image.new("RGB", (17, 11), (12, 34, 56)).save(buffer, format="PNG")
+        self.png = buffer.getvalue()
+
+    def test_native_bytes_remain_readable_by_ocr_without_reencoding(self):
+        from PIL import Image
+        result = screenshot_image_bytes(self.png)
+        self.assertEqual(result, self.png)
+        self.assertEqual(Image.open(BytesIO(result)).getpixel((0, 0)), (12, 34, 56))
+
+    def test_old_base64_input_keeps_identical_model_image_payload(self):
+        encoded = base64.b64encode(self.png).decode("ascii")
+        result = screenshot_image_bytes(encoded)
+        self.assertEqual(result, self.png)
+        self.assertEqual(base64.b64encode(result).decode("ascii"), encoded)
+
+    def test_array_preserves_dimensions_and_pixel_values(self):
+        import numpy as np
+        from PIL import Image
+        array = np.array(Image.open(BytesIO(self.png)))
+        result = Image.open(BytesIO(screenshot_image_bytes(array)))
+        self.assertEqual(result.size, (17, 11))
+        self.assertTrue(np.array_equal(np.array(result), array))
+
+    def test_data_url_and_buffer_inputs_preserve_original_bytes(self):
+        encoded = base64.b64encode(self.png).decode("ascii")
+        for value in ("data:image/png;base64," + encoded, bytearray(self.png), memoryview(self.png)):
+            self.assertEqual(screenshot_image_bytes(value), self.png)
+
+    def test_malformed_base64_is_not_replaced_with_a_placeholder(self):
+        with self.assertRaises(ValueError):
+            screenshot_image_bytes("not valid image data!")
 
 
 class DagRecoveryTests(unittest.TestCase):

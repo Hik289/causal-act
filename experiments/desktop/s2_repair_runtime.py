@@ -5,12 +5,50 @@ and never converted into guessed plans or scored actions.
 """
 
 from functools import wraps
+import base64
 import json
 import logging
 from pathlib import Path
 import shlex
 import time
 import uuid
+
+
+def screenshot_image_bytes(screenshot):
+    """Keep native image bytes for OCR and the unchanged model image encoder."""
+    if isinstance(screenshot, (bytes, bytearray, memoryview)):
+        return bytes(screenshot)
+    if isinstance(screenshot, str):
+        if screenshot.startswith("data:image/"):
+            metadata, screenshot = screenshot.split(",", 1)
+            if not metadata.endswith(";base64"):
+                raise ValueError("Screenshot data URL must use base64")
+        return base64.b64decode(screenshot, validate=True)
+    import numpy as np
+    if isinstance(screenshot, np.ndarray):
+        from io import BytesIO
+        from PIL import Image
+        buffer = BytesIO()
+        Image.fromarray(screenshot).save(buffer, format="PNG")
+        return buffer.getvalue()
+    raise TypeError("Screenshot must be image bytes, a base64 image, or an array")
+
+
+def install_s2_image_bytes():
+    """Support older wrappers that encoded screenshots before Agent S2 OCR."""
+    from gui_agents.s2.agents.agent_s import AgentS2
+    if getattr(AgentS2, "_causalact_image_bytes_installed", False):
+        return
+    predict = AgentS2.predict
+
+    @wraps(predict)
+    def predict_with_image_bytes(self, instruction, obs, *args, **kwargs):
+        observation = obs.copy()
+        observation["screenshot"] = screenshot_image_bytes(obs["screenshot"])
+        return predict(self, instruction, observation, *args, **kwargs)
+
+    AgentS2.predict = predict_with_image_bytes
+    AgentS2._causalact_image_bytes_installed = True
 
 
 class InvalidDagResponse(RuntimeError):
