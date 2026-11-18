@@ -193,6 +193,15 @@ does not consume a tree. Retain such attempts as unscored environment failures;
 after restoring the getter, resume only the missing tasks and preserve existing
 scores. A failed file-open setup is also unscored, rather than a task failure.
 
+For setups that require a visible initial desktop or application,
+`install_initial_frame_guard(audit_directory, known_cursor_crops)` can reject an
+all-black framebuffer or an exact, recorded cursor-only image pattern before
+the first model action. It retains the original image and records an unscored
+environment error. Record cursor fingerprints before the recovery run; do not
+use task success to choose them. The guard does not inspect later model actions
+or replace images. Leave it disabled for tasks whose legitimate initial state
+is blank. An HTTP 200 screenshot response alone does not prove that UI rendered.
+
 Agent S2's OCR text actions require native image bytes. Keep those bytes in the
 observation and let its model client encode them for transport. The wrapper
 normalizes older base64 observations without changing the model's encoded image

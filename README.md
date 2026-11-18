@@ -24,7 +24,9 @@ desktop readiness, cached evaluator dependencies, and oversized Web images.
 Screenshot-only observations preserve the official evaluator's access to
 accessibility trees; a worker check verifies that these paths remain separate.
 An optional offline install keeps the official evaluator wheel and checks its
-version before scoring. Validation includes twenty unit tests, both Agent S backends, independent
+version before scoring. An initial-frame check can reject known unrendered
+desktops before any model action, retaining the original image for audit.
+Validation includes twenty-four unit tests, both Agent S backends, independent
 synthetic geometry checks, real OCR, the original Calc file and evaluator
 dependency command, and the previously rejected Web images sent to Bedrock.
 [Commit history](https://github.com/Hik289/causal-act/commits/main/)

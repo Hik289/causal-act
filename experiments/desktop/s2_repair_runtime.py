@@ -6,6 +6,7 @@ and never converted into guessed plans or scored actions.
 
 from functools import wraps
 import base64
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -53,6 +54,63 @@ def install_s2_image_bytes():
 
 class InvalidDagResponse(RuntimeError):
     """The planner returned text that its existing DAG parser rejected."""
+
+
+class UnrenderedDesktop(RuntimeError):
+    """A run requiring a visible desktop received a known blank framebuffer."""
+
+
+def cursor_crop_fingerprint(screenshot):
+    from PIL import Image
+    from io import BytesIO
+    image = Image.open(BytesIO(screenshot_image_bytes(screenshot))).convert("RGB")
+    box = image.getbbox()
+    if box is None:
+        return None
+    crop = image.crop(box)
+    return f"{crop.width}x{crop.height}:" + hashlib.sha256(crop.tobytes()).hexdigest()
+
+
+def initial_frame_problem(screenshot, known_cursor_crops=()):
+    fingerprint = cursor_crop_fingerprint(screenshot)
+    if fingerprint is None:
+        return "all-black initial framebuffer"
+    if fingerprint in known_cursor_crops:
+        return "initial framebuffer contains only the known cursor on black"
+    return None
+
+
+def guarded_initial_reset(reset, audit_directory, known_cursor_crops=()):
+    fingerprints = frozenset(known_cursor_crops)
+
+    @wraps(reset)
+    def checked(self, *args, **kwargs):
+        obs = reset(self, *args, **kwargs)
+        problem = initial_frame_problem(obs["screenshot"], fingerprints)
+        if problem:
+            directory = Path(audit_directory)
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / (uuid.uuid4().hex + ".png")
+            path.write_bytes(screenshot_image_bytes(obs["screenshot"]))
+            path.with_suffix(".json").write_text(json.dumps({
+                "task_id": getattr(self, "task_id", None),
+                "reason": problem, "classification": "invalid_environment_unscored",
+            }))
+            raise UnrenderedDesktop(problem + "; no model action has run")
+        return obs
+
+    return checked
+
+
+def install_initial_frame_guard(audit_directory, known_cursor_crops=()):
+    """Opt in only when setup requires visible UI; never inspect later actions."""
+    from desktop_env.desktop_env import DesktopEnv
+    if getattr(DesktopEnv, "_causalact_initial_frame_guard", False):
+        return
+    DesktopEnv.reset = guarded_initial_reset(
+        DesktopEnv.reset, audit_directory, known_cursor_crops
+    )
+    DesktopEnv._causalact_initial_frame_guard = True
 
 
 def checked_dag_parser(parser, retain):

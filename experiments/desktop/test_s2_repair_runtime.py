@@ -13,6 +13,10 @@ from s2_repair_runtime import (
     prepare_cssselect_dependency,
     screenshot_image_bytes,
     wait_for_desktop,
+    cursor_crop_fingerprint,
+    initial_frame_problem,
+    guarded_initial_reset,
+    UnrenderedDesktop,
 )
 
 
@@ -126,6 +130,46 @@ class EvaluatorWheelTests(unittest.TestCase):
                 prepare_cssselect_dependency(
                     object(), ["pip", "install", "/home/user/cssselect-1.3.0-py3-none-any.whl"]
                 )
+
+
+class InitialFrameTests(unittest.TestCase):
+    def png(self, image):
+        stream = BytesIO()
+        image.save(stream, format="PNG")
+        return stream.getvalue()
+
+    def test_all_black_is_rejected_before_a_visible_desktop_run(self):
+        from PIL import Image
+        self.assertIsNotNone(initial_frame_problem(self.png(Image.new("RGB", (80, 60)))))
+
+    def test_known_cursor_is_translation_invariant(self):
+        from PIL import Image
+        first = Image.new("RGB", (80, 60))
+        first.paste((255, 255, 255), (2, 3, 5, 9))
+        known = cursor_crop_fingerprint(self.png(first))
+        second = Image.new("RGB", (80, 60))
+        second.paste((255, 255, 255), (60, 40, 63, 46))
+        self.assertIsNotNone(initial_frame_problem(self.png(second), [known]))
+
+    def test_dark_ui_is_preserved_and_is_not_a_cursor_only_frame(self):
+        from PIL import Image
+        cursor = Image.new("RGB", (80, 60))
+        cursor.paste((255, 255, 255), (2, 3, 5, 9))
+        known = cursor_crop_fingerprint(self.png(cursor))
+        cursor.paste((30, 30, 30), (20, 20, 50, 40))
+        self.assertIsNone(initial_frame_problem(self.png(cursor), [known]))
+
+    def test_initial_guard_retains_exact_frame_and_raises_without_replacing_it(self):
+        from PIL import Image
+        png = self.png(Image.new("RGB", (80, 60)))
+        class Environment:
+            task_id = "diagnostic"
+        with TemporaryDirectory() as folder:
+            reset = guarded_initial_reset(lambda env: {"screenshot": png}, folder)
+            with self.assertRaises(UnrenderedDesktop):
+                reset(Environment())
+            from pathlib import Path
+            self.assertEqual(next(Path(folder).glob("*.png")).read_bytes(), png)
 
 
 if __name__ == "__main__":
