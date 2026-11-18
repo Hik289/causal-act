@@ -16,10 +16,13 @@
 
 ## Recent Commit
 
-**November 13, 2026** — Added paired OSWorld replay with timing controls,
-Bench2Drive validation and holdout runs, and ScreenSpot-Pro point evaluation.
-This update also includes the forum comparison runner and an optional Bedrock
-adapter. [Commit history](https://github.com/Hik289/causal-act/commits/main/)
+**November 18, 2026** — Added opt-in Agent S2 runtime repairs: retain malformed
+DAG replies with at most three attempts, wait for the GNOME desktop after guest
+HTTP startup, and prepare the original evaluator's dependencies from cached
+Ubuntu packages. Validation includes five unit tests, opening the original Calc
+task file through its original endpoint, and successfully running the original
+dependency installation command.
+[Commit history](https://github.com/Hik289/causal-act/commits/main/)
 
 ## How it works
 
