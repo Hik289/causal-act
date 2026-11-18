@@ -185,6 +185,14 @@ setting in the run manifest. If recovering an existing run, preserve its scored
 tasks and memory, resume only unscored tasks, and report the capture change as an
 environment difference.
 
+Limit screenshot-only settings to the agent's observations. Keep
+`PythonController.get_accessibility_tree` available: official task evaluators,
+including Thunderbird's, can call it independently of those observations.
+Blocking that getter globally prevents official scoring even when the agent
+does not consume a tree. Retain such attempts as unscored environment failures;
+after restoring the getter, resume only the missing tasks and preserve existing
+scores. A failed file-open setup is also unscored, rather than a task failure.
+
 Agent S2's OCR text actions require native image bytes. Keep those bytes in the
 observation and let its model client encode them for transport. The wrapper
 normalizes older base64 observations without changing the model's encoded image
