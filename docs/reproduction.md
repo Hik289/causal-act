@@ -176,6 +176,15 @@ a compatible UI-TARS service, and `CIV_S2_MEMORY_DIR` to a writable directory
 for the S2 worker. Use separate result directories and memory folders for each
 shard.
 
+For screenshot-only Agent S2 runs, pass `--observation_type screenshot`
+explicitly. OSWorld captures the screenshot before retrieving an optional
+accessibility tree; a slow or failing tree endpoint can therefore delay the
+action while leaving the screenshot stale. The recorded S2 implementation uses
+the screenshot and instruction without reading that tree. Record the capture
+setting in the run manifest. If recovering an existing run, preserve its scored
+tasks and memory, resume only unscored tasks, and report the capture change as an
+environment difference.
+
 ## Bench2Drive and CARLA
 
 Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive), CARLA 0.9.15,

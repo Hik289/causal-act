@@ -20,7 +20,9 @@
 DAG replies with at most three attempts, wait for the GNOME desktop after guest
 HTTP startup, and prepare the original evaluator's dependencies from cached
 Ubuntu packages. Oversized Web images now use the relay's existing encoder
-before its ingress size check, preserving pixel dimensions. Validation includes
+before its ingress size check, preserving pixel dimensions. Documented explicit
+screenshot capture for S2 so unused accessibility reads cannot delay its actions;
+recovery preserves scored tasks and records the environment change. Validation includes
 eight unit tests, opening the original Calc task file through its original
 endpoint, running the original dependency installation command, and sending the
 previously rejected input images successfully to Bedrock.
