@@ -23,7 +23,8 @@ native image bytes for OCR. Runtime repairs also cover malformed DAG replies,
 desktop readiness, cached evaluator dependencies, and oversized Web images.
 Screenshot-only observations preserve the official evaluator's access to
 accessibility trees; a worker check verifies that these paths remain separate.
-Validation includes eighteen unit tests, both Agent S backends, independent
+An optional offline install keeps the official evaluator wheel and checks its
+version before scoring. Validation includes twenty unit tests, both Agent S backends, independent
 synthetic geometry checks, real OCR, the original Calc file and evaluator
 dependency command, and the previously rejected Web images sent to Bedrock.
 [Commit history](https://github.com/Hik289/causal-act/commits/main/)

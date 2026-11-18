@@ -201,6 +201,14 @@ environment before using text actions. Missing OCR dependencies or screenshot
 type errors are infrastructure failures; retain their raw scores and logs as
 invalid and resume those tasks after fixing the environment.
 
+For the recorded Thunderbird evaluator's local `cssselect` 1.3.0 wheel, the
+optional `offline_evaluator_wheel=True` setting in `install_environment_repairs`
+disables package-index access and pip's version check. It installs the original
+wheel and then checks its installed version using the evaluator's `python`.
+An install error or version mismatch leaves the task unscored. This narrow
+repair changes neither the evaluator script nor its expected output. Queue a
+missing task after the active worker exits, preserving already scored tasks.
+
 UI-TARS 1.5 returns pixels in its processor's resized image, as described in the
 [official coordinate guide](https://github.com/bytedance/UI-TARS/blob/main/README_coordinates.md).
 Both Agent S entry points require `CAUSALACT_UI_TARS_FRAME_CONTRACT`; a fixed

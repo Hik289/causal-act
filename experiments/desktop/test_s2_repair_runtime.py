@@ -10,6 +10,7 @@ from s2_repair_runtime import (
     bounded_dag_generator,
     checked_dag_parser,
     prepare_expect_dependency,
+    prepare_cssselect_dependency,
     screenshot_image_bytes,
     wait_for_desktop,
 )
@@ -108,6 +109,23 @@ class DagRecoveryTests(unittest.TestCase):
             with patch("s2_repair_runtime.guest_execute", return_value={"returncode": 1}):
                 with self.assertRaises(RuntimeError):
                     prepare_expect_dependency(object(), directory)
+
+
+class EvaluatorWheelTests(unittest.TestCase):
+    def test_failed_install_is_unscored_even_when_http_request_succeeded(self):
+        with patch("s2_repair_runtime.guest_execute", return_value={"returncode": 1}):
+            with self.assertRaisesRegex(RuntimeError, "task remains unscored"):
+                prepare_cssselect_dependency(
+                    object(), ["pip", "install", "/home/user/cssselect-1.3.0-py3-none-any.whl"]
+                )
+
+    def test_successful_install_with_wrong_evaluator_version_is_rejected(self):
+        results = [{"returncode": 0}, {"returncode": 0, "output": "1.2.0\n"}]
+        with patch("s2_repair_runtime.guest_execute", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "version check failed"):
+                prepare_cssselect_dependency(
+                    object(), ["pip", "install", "/home/user/cssselect-1.3.0-py3-none-any.whl"]
+                )
 
 
 if __name__ == "__main__":

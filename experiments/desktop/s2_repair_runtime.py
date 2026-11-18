@@ -169,7 +169,28 @@ def prepare_expect_dependency(controller, packages_directory):
         raise RuntimeError("Evaluator dependency was not installed")
 
 
-def install_environment_repairs(packages_directory):
+def prepare_cssselect_dependency(controller, command):
+    """Install the evaluator's existing wheel offline, then verify its version."""
+    expected = ["pip", "install", "/home/user/cssselect-1.3.0-py3-none-any.whl"]
+    if command != expected:
+        raise ValueError("Expected the recorded local cssselect evaluator wheel")
+    result = guest_execute(
+        controller,
+        ["env", "PIP_NO_INDEX=1", "PIP_DISABLE_PIP_VERSION_CHECK=1", *command],
+        timeout=150,
+    )
+    if result.get("returncode") != 0:
+        raise RuntimeError("Evaluator wheel installation failed; task remains unscored")
+    result = guest_execute(
+        controller,
+        ["python", "-c", "from importlib.metadata import version; print(version('cssselect'))"],
+        timeout=150,
+    )
+    if result.get("returncode") != 0 or result.get("output", "").strip() != "1.3.0":
+        raise RuntimeError("Evaluator wheel version check failed; task remains unscored")
+
+
+def install_environment_repairs(packages_directory, offline_evaluator_wheel=False):
     import inspect
     from desktop_env.controllers.setup import SetupController
     from desktop_env.desktop_env import DesktopEnv
@@ -196,6 +217,9 @@ def install_environment_repairs(packages_directory):
         command = bound.arguments.get("command")
         if isinstance(command, str) and "apt-get install -y expect" in command:
             prepare_expect_dependency(self, packages_directory)
+        if (offline_evaluator_wheel and not bound.arguments.get("shell", False)
+                and command == ["pip", "install", "/home/user/cssselect-1.3.0-py3-none-any.whl"]):
+            return prepare_cssselect_dependency(self, command)
         return execute(self, *args, **kwargs)
 
     DesktopEnv._start_emulator = start_when_ready
