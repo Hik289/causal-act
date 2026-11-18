@@ -13,6 +13,13 @@ OpenAIEmbeddingEngine.get_embeddings = dummy_embed
 
 import run as runmod
 
+from ui_tars_frame import install_s2_grounding_frame
+frame_path = os.environ.get("CAUSALACT_UI_TARS_FRAME_CONTRACT")
+if not frame_path:
+    raise RuntimeError("Record the deployed UI-TARS frame and set CAUSALACT_UI_TARS_FRAME_CONTRACT")
+with open(frame_path, encoding="utf-8") as frame_file:
+    install_s2_grounding_frame(json.load(frame_file))
+
 
 class AgentS2Wrapper:
     def __init__(self, action_space="pyautogui", observation_type="a11y_tree", **kwargs):

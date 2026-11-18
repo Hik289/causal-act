@@ -193,6 +193,27 @@ environment before using text actions. Missing OCR dependencies or screenshot
 type errors are infrastructure failures; retain their raw scores and logs as
 invalid and resume those tasks after fixing the environment.
 
+UI-TARS 1.5 returns pixels in its processor's resized image, as described in the
+[official coordinate guide](https://github.com/bytedance/UI-TARS/blob/main/README_coordinates.md).
+Both Agent S entry points require `CAUSALACT_UI_TARS_FRAME_CONTRACT`; a fixed
+1000-by-1000 frame belongs to a different output convention. Record the actual
+deployment geometry before evaluation, including any service thumbnail cap:
+
+```bash
+python3 experiments/desktop/record_ui_tars_frame.py /path/to/frame.json \
+  --model-path /path/to/UI-TARS-1.5-7B --width 1920 --height 1080 \
+  --service-max-side 640 --service-source /path/to/uitars_server.py
+export CAUSALACT_UI_TARS_FRAME_CONTRACT=/path/to/frame.json
+```
+
+The recorder uses a blank image and processor metadata, without target boxes or
+benchmark scores. Use the service's actual cap rather than copying this example
+for another deployment. The client rejects a changed screenshot size. Preserve
+results from an earlier coordinate convention as historical implementation
+measurements, and report corrected runs as a separate protocol with its own
+manifest and denominator. Synthetic geometry diagnostics are not benchmark
+scores.
+
 ## Bench2Drive and CARLA
 
 Install [Bench2Drive](https://github.com/Thinklab-SJTU/Bench2Drive), CARLA 0.9.15,

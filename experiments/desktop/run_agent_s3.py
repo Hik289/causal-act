@@ -7,6 +7,13 @@ from gui_agents.s3.agents.agent_s import AgentS3
 from gui_agents.s3.agents.grounding import OSWorldACI
 import run as benchmark
 
+from ui_tars_frame import install_s3_grounding_frame
+frame_path = os.environ.get("CAUSALACT_UI_TARS_FRAME_CONTRACT")
+if not frame_path:
+    raise RuntimeError("Record the deployed UI-TARS frame and set CAUSALACT_UI_TARS_FRAME_CONTRACT")
+with open(frame_path, encoding="utf-8") as frame_file:
+    install_s3_grounding_frame(json.load(frame_file))
+
 from pathlib import Path
 import runpy
 from gui_agents.s3.core import engine as s3_engine
