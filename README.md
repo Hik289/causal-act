@@ -19,9 +19,11 @@
 **November 18, 2026** — Added opt-in Agent S2 runtime repairs: retain malformed
 DAG replies with at most three attempts, wait for the GNOME desktop after guest
 HTTP startup, and prepare the original evaluator's dependencies from cached
-Ubuntu packages. Validation includes five unit tests, opening the original Calc
-task file through its original endpoint, and successfully running the original
-dependency installation command.
+Ubuntu packages. Oversized Web images now use the relay's existing encoder
+before its ingress size check, preserving pixel dimensions. Validation includes
+eight unit tests, opening the original Calc task file through its original
+endpoint, running the original dependency installation command, and sending the
+previously rejected input images successfully to Bedrock.
 [Commit history](https://github.com/Hik289/causal-act/commits/main/)
 
 ## How it works
