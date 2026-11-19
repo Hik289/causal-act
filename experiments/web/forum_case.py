@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import json
+import hashlib
 import math
 import os
 from pathlib import Path
@@ -44,6 +45,14 @@ def main():
     bridge = PacedClaude(args.relay_endpoint, args.credential_file, output / 'requests.jsonl')
     task_file = Path(args.task_file).resolve()
     try:
+        repair_file = os.environ.get('CAUSALACT_RUNTIME_REPAIR_MANIFEST')
+        repair = json.loads(Path(repair_file).read_text()) if repair_file else None
+        if repair:
+            if repair['base_protocol_sha256'] != args.protocol_sha256 or Path(repair['source_dir']).resolve() != Path(__file__).resolve().parent:
+                raise RuntimeError('Runtime source repair/protocol mismatch')
+            for name, digest in repair['source_files'].items():
+                if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest:
+                    raise RuntimeError('Runtime repaired source hash mismatch')
         task = json.loads(task_file.read_text())
         if task.get('sites') != ['reddit']:
             raise RuntimeError('This isolated factory accepts Forum-only tasks')
@@ -82,6 +91,10 @@ def main():
                       original_task_sha256=args.original_task_sha256,
                       protocol_sha256=args.protocol_sha256,
                       fixture=False, environment_origin=args.origin)
+        if repair:
+            result.update(runtime_repair_id=repair['repair_id'], runtime_source_commit=repair['source_commit'],
+                          runtime_repair_sha256=hashlib.sha256(Path(repair_file).read_bytes()).hexdigest(),
+                          runtime_source_files=repair['source_files'])
         temporary = output / 'result.tmp'
         temporary.write_text(json.dumps(result, indent=2) + '\n')
         temporary.replace(output / 'result.json')

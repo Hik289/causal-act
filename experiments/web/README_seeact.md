@@ -101,6 +101,17 @@ or `--method seeact` plus `--reference-image-check`. It remains outside every
 benchmark denominator. The matched queue does not replace historical scores or
 establish a same-initial-state comparison with historical CausalAct controls.
 
+A recorded runtime repair can address a navigation-invalidated DOM read before
+any model request occurs. The bounded observation retry restores the native
+observation counter; it repeats no action or model request. Errors after a model
+call remain invalid attempts. Failed observations and earlier logs are retained.
+Use `--runtime-repair` only with a hash-checked amendment tied to the original
+protocol and a separate immutable source directory. Existing valid score bytes,
+model settings, task inputs, and protocol identity remain protected. A named
+previously unscored case can receive one post-repair attempt; that allowance is
+persisted once and cannot grow on controller restart. Workers record the repair
+identity and actual runtime source hashes alongside new scores.
+
 `prepare_forum_seed.py` starts only an owner-labeled container from the pinned
 image, checks readiness and disk space, then stops PostgreSQL cleanly before
 committing a new seed image. It requires copy-on-write storage and refuses

@@ -51,7 +51,7 @@ def valid_score(path, task_id, method, run_id, original_sha, protocol_sha):
 
 
 class Queue:
-    def __init__(self, protocol_file):
+    def __init__(self, protocol_file, runtime_repair_file=None):
         self.protocol_file = Path(protocol_file).resolve()
         self.root = self.protocol_file.parent
         self.protocol = json.loads(self.protocol_file.read_text())
@@ -63,6 +63,19 @@ class Queue:
         self.states, self.scores = {}, {}
         self.reservations = set()
         self.finished = False
+        self.runtime_repair_file = Path(runtime_repair_file).resolve() if runtime_repair_file else None
+        self.runtime_repair = None
+        self.runtime_repair_hash = None
+        self.repair_limits = {}
+        self.repair_limits_file = None
+        self.repair_limits_hash = None
+        if self.runtime_repair_file:
+            self.runtime_repair_hash = hashlib.sha256(self.runtime_repair_file.read_bytes()).hexdigest()
+            self.runtime_repair = json.loads(self.runtime_repair_file.read_text())
+            if (self.runtime_repair['base_protocol_sha256'] != self.protocol_hash
+                or Path(self.runtime_repair['source_dir']).resolve() != Path(__file__).resolve().parent
+                or not self.runtime_repair['environment_repair_only']):
+                raise RuntimeError('Runtime repair does not match this frozen protocol/source')
         self.protected = json.loads((self.root / 'protected_scores.json').read_text()) if (self.root / 'protected_scores.json').exists() else {}
         if self.protocol['workers'] not in (1, 2):
             raise RuntimeError('This queue reserves at most two Forum workers')
@@ -70,6 +83,26 @@ class Queue:
         for task in self.protocol['tasks']:
             for method in ['base', 'seeact']:
                 self.find_score(task, method)
+        if self.runtime_repair:
+            repair_id = self.runtime_repair['repair_id']
+            if not repair_id.replace('_', '').isalnum():
+                raise RuntimeError('Invalid repair identity')
+            self.repair_limits_file = self.root / repair_id / 'attempt_limits.json'
+            self.repair_limits_file.parent.mkdir(exist_ok=True)
+            if self.repair_limits_file.exists():
+                limits = json.loads(self.repair_limits_file.read_text())
+                if limits['runtime_repair_sha256'] != self.runtime_repair_hash:
+                    raise RuntimeError('Existing repaired-attempt budget belongs to another manifest')
+            else:
+                allowed = self.runtime_repair.get('one_post_repair_attempt', [])
+                valid_keys = {str(t['task_id']) + '/' + m for t in self.protocol['tasks'] for m in ['base', 'seeact']}
+                if not set(allowed).issubset(valid_keys):
+                    raise RuntimeError('Repair attempt identity is outside the task manifest')
+                limits = {'runtime_repair_sha256': self.runtime_repair_hash, 'limits': {
+                    key: len(list((self.root / 'cases' / key).glob('attempt*'))) + 1 for key in allowed}}
+                atomic(self.repair_limits_file, limits)
+            self.repair_limits = limits['limits']
+            self.repair_limits_hash = hashlib.sha256(self.repair_limits_file.read_bytes()).hexdigest()
         self.save()
 
     def verify_frozen(self):
@@ -82,6 +115,14 @@ class Queue:
             for name, digest in self.protected.items():
                 if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest:
                     raise RuntimeError('A valid score artifact changed: ' + name)
+            if self.runtime_repair:
+                if hashlib.sha256(self.runtime_repair_file.read_bytes()).hexdigest() != self.runtime_repair_hash:
+                    raise RuntimeError('Runtime repair manifest changed')
+                for name, digest in self.runtime_repair['source_files'].items():
+                    if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest:
+                        raise RuntimeError('Runtime repair source changed: ' + name)
+            if self.repair_limits_hash and hashlib.sha256(self.repair_limits_file.read_bytes()).hexdigest() != self.repair_limits_hash:
+                raise RuntimeError('Repaired-attempt budget changed')
 
     def find_score(self, task, method):
         key = str(task['task_id']) + '/' + method
@@ -113,6 +154,7 @@ class Queue:
                           paired={m: {'score_sum': sum(self.scores[str(t) + '/' + m]['score'] for t in paired),
                                       'denominator': len(paired)} for m in methods},
                           comparison='new matched initialization; historical Base/CausalAct scores remain separate')
+            report['runtime_repair_id'] = self.runtime_repair['repair_id'] if self.runtime_repair else None
             atomic(self.root / 'protected_scores.json', self.protected)
             atomic(self.root / 'score_registry.json', self.scores)
             atomic(self.root / ('pair_report.json' if report['complete'] else 'partial_pair_report.json'), report)
@@ -159,7 +201,8 @@ class Queue:
         folder = self.root / 'cases' / str(task['task_id']) / method
         folder.mkdir(parents=True, exist_ok=True)
         attempts = sorted(folder.glob('attempt*'))
-        while len(attempts) < self.protocol['attempts_per_case'] and not self.stop.is_set():
+        attempt_limit = self.repair_limits.get(str(task['task_id']) + '/' + method, self.protocol['attempts_per_case'])
+        while len(attempts) < attempt_limit and not self.stop.is_set():
             while not self.reserve(lane) and not self.stop.wait(30):
                 self.set_state(lane, {'status': 'waiting for disk, host memory or API worker slot', 'task_id': task['task_id'], 'method': method})
                 self.save()
@@ -207,6 +250,8 @@ class Queue:
                 env = os.environ.copy()
                 env.update(self.protocol['environment'])
                 env['CUDA_VISIBLE_DEVICES'] = ''
+                if self.runtime_repair_file:
+                    env['CAUSALACT_RUNTIME_REPAIR_MANIFEST'] = str(self.runtime_repair_file)
                 args = [self.protocol['python'], '-u', str(Path(__file__).with_name('forum_case.py')),
                     '--method', method, '--task-file', str(attempt / 'task.json'), '--output', str(attempt),
                     '--checkout', self.protocol['checkout'], '--seeact-source', self.protocol['seeact_source'],
@@ -283,4 +328,6 @@ class Queue:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--protocol', required=True)
-    Queue(parser.parse_args().protocol).run()
+    parser.add_argument('--runtime-repair')
+    args = parser.parse_args()
+    Queue(args.protocol, args.runtime_repair).run()

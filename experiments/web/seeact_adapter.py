@@ -303,7 +303,8 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10,
         for step in range(max_steps):
             if agent.complete_flag:
                 break
-            prediction = await agent.predict()
+            from navigation_observation import stable_prediction
+            prediction = await stable_prediction(agent, bridge, output / 'navigation_recovery.jsonl')
             if prediction is None and not agent.complete_flag:
                 raise RuntimeError('Native planner returned no prediction')
             if prediction is None:

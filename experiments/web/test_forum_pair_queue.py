@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import threading
+import forum_pair_queue
 import unittest
 from unittest.mock import patch
 
@@ -10,6 +11,51 @@ from forum_pair_queue import Queue, remap, valid_score
 
 
 class MatchedQueueTests(unittest.TestCase):
+    def repair_manifest(self, root, protocol, sha):
+        source = Path(forum_pair_queue.__file__).resolve()
+        folder = root / 'navigation_repair'
+        folder.mkdir(exist_ok=True)
+        manifest = folder / 'manifest.json'
+        manifest.write_text(json.dumps({'repair_id': 'navigation_repair', 'base_protocol_sha256': sha,
+            'source_dir': str(source.parent), 'source_files': {str(source): hashlib.sha256(source.read_bytes()).hexdigest()},
+            'environment_repair_only': True, 'one_post_repair_attempt': ['3/seeact']}))
+        return manifest
+
+    def test_repair_preserves_valid_negative_and_grants_missing_case_only_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protocol, digest = self.make_protocol(root)
+            sha = hashlib.sha256(protocol.read_bytes()).hexdigest()
+            raw = self.make_score(root, digest, sha)
+            before = raw.read_bytes()
+            for index in [1, 2]:
+                (root / 'cases/3/seeact' / ('attempt' + str(index))).mkdir(parents=True)
+            repair = self.repair_manifest(root, protocol, sha)
+            first = Queue(protocol, repair)
+            self.assertEqual(first.repair_limits['3/seeact'], 3)
+            first.lock.close()
+            (root / 'cases/3/seeact/attempt3').mkdir()
+            second = Queue(protocol, repair)
+            try:
+                self.assertEqual(second.repair_limits['3/seeact'], 3)
+                self.assertEqual(second.scores['3/base']['score'], 0.)
+                self.assertEqual(raw.read_bytes(), before)
+                self.assertEqual(second.protocol_hash, sha)
+            finally:
+                second.lock.close()
+
+    def test_runtime_repair_cannot_replace_the_original_protocol_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protocol, _ = self.make_protocol(root)
+            repair = self.repair_manifest(root, protocol, 'different')
+            queue = object.__new__(Queue)
+            try:
+                with self.assertRaisesRegex(RuntimeError, 'does not match'):
+                    queue.__init__(protocol, repair)
+            finally:
+                queue.lock.close()
+
     def make_protocol(self, root):
         task = root / 'original.json'
         task.write_text('{"task_id": 3}')
