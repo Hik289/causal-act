@@ -9,7 +9,9 @@ import subprocess
 import time
 
 
-def admit(original_jobs, side_jobs, active_followups, gpu, free_mib, disk_bytes):
+def admit(original_jobs, side_jobs, active_followups, gpu, free_mib, disk_bytes, active_gpu_pids=()):
+    if active_gpu_pids:
+        return False
     if any(job.get('status') == 'queued' for job in original_jobs.values()):
         return False
     if any(job.get('status') == 'running' and job.get('gpu') == gpu
@@ -46,7 +48,14 @@ def main():
         side = json.loads(side_path.read_text())['jobs'] if side_path.exists() else {}
         free = int(subprocess.check_output(['nvidia-smi', '--id=' + str(gpu),
                    '--query-gpu=memory.free', '--format=csv,noheader,nounits'], text=True).strip())
-        return admit(old['jobs'], side, active_count, gpu, free, shutil.disk_usage(run).free)
+        uuid = subprocess.check_output(['nvidia-smi', '--id=' + str(gpu),
+                    '--query-gpu=uuid', '--format=csv,noheader'], text=True).strip()
+        processes = subprocess.check_output(['nvidia-smi', '--query-compute-apps=gpu_uuid,pid',
+                                             '--format=csv,noheader'], text=True)
+        owners = [line.split(',')[1].strip() for line in processes.splitlines()
+                  if line.split(',')[0].strip() == uuid]
+        state.setdefault('waiting_on_compute_pids', {})[str(gpu)] = owners
+        return admit(old['jobs'], side, active_count, gpu, free, shutil.disk_usage(run).free, owners)
 
     def launch(method, gpu):
         stream = (run / (method + '.log')).open('a')

@@ -37,6 +37,7 @@ a zero fusion weight is explicitly a disabled-V setting.
 An optional scheduling amendment starts registered followups on idle cards
 while preserving original-job priority, memory limits, and the shared limit
 of four local GPU workers.
+Admission also checks actual GPU compute processes before claiming an idle card.
 
 Agent S2 and S3 also require an explicit UI-TARS 1.5
 processed-image frame. The frame is recorded from the deployed processor before

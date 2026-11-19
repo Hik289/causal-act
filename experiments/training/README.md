@@ -93,6 +93,8 @@ protocol, admits only GPUs 0/1 with no running owner, and gives queued original
 work priority. It counts the fusion-calibration worker toward the four-worker
 limit and checks memory/disk floors. Thus a newly idle card can start a
 registered followup while the remaining original configurations finish.
+Actual GPU compute-process ownership is checked as well, including unrelated
+jobs that do not appear in the experiment queue.
 
 Run the protocol checks from this directory in the training environment:
 

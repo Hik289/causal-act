@@ -4,6 +4,9 @@ from balanced_followup_idle_controller import admit
 
 
 class IdleGPUAdmissionTests(unittest.TestCase):
+    def test_unrelated_compute_owner_blocks_an_otherwise_roomy_card(self):
+        self.assertFalse(admit({}, {}, 0, 1, 45000, 20 * 2**30, active_gpu_pids=[123]))
+
     def test_inference_on_original_gpu_is_not_mistaken_for_idle_memory(self):
         self.assertFalse(admit({'full': {'status': 'running', 'gpu': 0}}, {}, 0, 0, 41000, 20 * 2**30))
 
