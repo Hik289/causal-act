@@ -16,7 +16,15 @@
 
 ## Recent Commit
 
-**November 19, 2026** — Agent S2 and S3 now require an explicit UI-TARS 1.5
+**November 19, 2026** — Added a controlled forum component study with a
+forum-level train/validation/test split, 100 held-out cases, backend-verified
+edits, and two rounds of separate A, V, and I adapter training. The study includes
+ten configurations and records full module parameter counts, validation-selected
+checkpoints, raw predictions, and metric denominators. I selects from three
+validated edit programs; these component scores do not establish full benchmark
+success or cross-environment transfer. See the [study protocol](experiments/training/README.md).
+
+Agent S2 and S3 also require an explicit UI-TARS 1.5
 processed-image frame. The frame is recorded from the deployed processor before
 evaluation, and earlier coordinate protocols retain separate results. S2 keeps
 native image bytes for OCR. Runtime repairs also cover malformed DAG replies,

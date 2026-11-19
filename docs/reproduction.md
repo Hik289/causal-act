@@ -293,6 +293,32 @@ Set `CAUSALACT_GROUNDER_URL` for the UI-TARS endpoint and
 uses a 640-pixel maximum image edge. Both scripts keep their point predictions
 locally and allow API errors to be retried.
 
+## Controlled forum component study
+
+The [training protocol](../experiments/training/README.md) describes a separate
+study on live Postmill subscription states. It uses a fixed forum-level split,
+100 held-out semantic decision cases, and a validated three-program edit pool.
+It does not replace VWA, OSWorld, or driving task evaluation.
+
+In an isolated environment with PyTorch, Transformers 4.49, Pillow, Playwright,
+and a local SmolVLM-500M checkpoint, collect and train using your own browser
+session and paths:
+
+```bash
+python experiments/training/build_forum_quads.py \
+  --out .runs/forum-study/data --auth /path/to/postmill-session.json \
+  --browser /path/to/chromium --seed 20261119
+python experiments/training/forum_expert_iteration.py \
+  --data .runs/forum-study/data/dataset.jsonl --model /path/to/smolvlm \
+  --out .runs/forum-study/full --variant full --rounds 2 --epochs 3 --seed 42
+```
+
+Keep generated data and each configuration's raw predictions. The report
+verifier reads completed predictions without making model requests; its
+`PairCausalAcc` requires correct original, targeted, and unrelated decisions,
+while `TargetPairAcc` requires the first two. Historical raw reports remain
+unchanged. Empty area buckets remain unmeasured.
+
 ## Files in this release
 
 The release includes experiment code, benchmark patches, recorded result counts,
