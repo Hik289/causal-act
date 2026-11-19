@@ -87,8 +87,15 @@ resumed by case ID; original reports, weights, and predictions are preserved.
 `run_verifier_calibration.py` uses one explicitly allocated free GPU without
 exceeding the original study's four simultaneous local workers.
 
+`balanced_followup_idle_controller.py` is an optional compute-only amendment
+made before followup training starts. It preserves the original worker and
+protocol, admits only GPUs 0/1 with no running owner, and gives queued original
+work priority. It counts the fusion-calibration worker toward the four-worker
+limit and checks memory/disk floors. Thus a newly idle card can start a
+registered followup while the remaining original configurations finish.
+
 Run the protocol checks from this directory in the training environment:
 
 ```bash
-python -m unittest test_forum_suite test_balanced_followup test_verifier_calibration
+python -m unittest test_forum_suite test_balanced_followup test_verifier_calibration test_idle_gpu_admission
 ```
