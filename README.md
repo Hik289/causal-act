@@ -16,6 +16,15 @@
 
 ## Recent Commit
 
+**November 19, 2026** — Added a native SeeAct/Claude transport adapter and an
+unscored browser-to-official-evaluator check. It preserves screenshot bytes,
+rejects invalid inference, and evaluates the same live page state. The planned
+170-task comparison remains pending the matched Base runner and reference-image
+input support. An owner-checked forum seed preparation supports fresh paired
+environments. Ten unit checks and a native integration fixture cover the new
+paths; preparation and fixture results are not benchmark scores. See the
+[adapter protocol](experiments/web/README_seeact.md).
+
 **November 19, 2026** — Added a controlled forum component study with a
 forum-level train/validation/test split, 100 held-out cases, backend-verified
 edits, and two rounds of separate A, V, and I adapter training. The study includes
