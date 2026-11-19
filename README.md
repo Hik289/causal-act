@@ -24,6 +24,11 @@ checkpoints, raw predictions, and metric denominators. I selects from three
 validated edit programs; these component scores do not establish full benchmark
 success or cross-environment transfer. See the [study protocol](experiments/training/README.md).
 
+A separate validation-gated replication now audits the action-label sampling
+prior, applies one training-derived class-weight correction, and reserves new
+forums for the original/adjusted checkpoint comparison. Original scores remain
+intact; the followup makes no claim of an improved held-out result.
+
 Agent S2 and S3 also require an explicit UI-TARS 1.5
 processed-image frame. The frame is recorded from the deployed processor before
 evaluation, and earlier coordinate protocols retain separate results. S2 keeps
