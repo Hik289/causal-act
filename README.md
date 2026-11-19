@@ -16,12 +16,12 @@
 
 ## Recent Commit
 
-**November 19, 2026** — Added a native SeeAct/Claude transport adapter and an
-unscored browser-to-official-evaluator check. It preserves screenshot bytes,
-rejects invalid inference, and evaluates the same live page state. The planned
-170-task comparison remains pending the matched Base runner and reference-image
-input support. An owner-checked forum seed preparation supports fresh paired
-environments. Ten unit checks and a native integration fixture cover the new
+**November 19, 2026** — Added native SeeAct and existing Base adapters using
+audited Claude requests and the official live-page evaluator. A resumable
+170-task Forum queue freezes identical reference images and creates a fresh,
+owner-checked environment for each method/task. It preserves valid negative
+scores, rejects incomplete inference/evaluation, and reports paired denominators.
+Twenty-four interface/queue checks and reference-image fixtures cover these
 paths; preparation and fixture results are not benchmark scores. See the
 [adapter protocol](experiments/web/README_seeact.md).
 

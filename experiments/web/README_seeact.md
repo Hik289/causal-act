@@ -15,10 +15,13 @@ eight-request concurrency limit and eight starts per six seconds. Credentials
 are read from a caller-supplied local file and are never placed in the audit.
 
 Upstream labels its PNG screenshot bytes as JPEG. The adapter corrects the MIME
-header without resizing, recompressing, or changing any image byte. It also
+header without changing screenshot bytes. For images above the relay's existing
+3,700,000-byte limit, both executors use its recorded JPEG conversion without
+resizing dimensions. Original files and conversion metadata remain available. It also
 makes the upstream browser helper honor headless execution and accepts the
 benchmark's existing authentication state. These are recorded environment and
-transport adaptations. Native prompts, parser rules, and actions are unchanged.
+transport adaptations. Native prompt strings, parser rules, and actions are unchanged;
+SeeAct's user message gains a labeled block containing every task reference image.
 The deployed browser package is recorded separately from upstream requirements.
 
 The official VisualWebArena evaluator attaches through CDP to the exact native
@@ -53,11 +56,45 @@ checks and the complete valid comparison finish, main-table entries stay
 pending. The official 910-task coverage and full CausalAct comparison remain
 separate incomplete work.
 
-The original manifest contains 86 text-only tasks and 84 tasks with reference
-images. This adapter currently rejects reference-image tasks explicitly rather
-than dropping their input. They remain pending an input-preserving adaptation;
-an eventual text-only run must be labeled an 86-task subset. Screenshot support
-does not establish support for a separate task reference image.
+The original manifest contains 86 text-only tasks and 84 tasks with 89 reference
+images. Resolve the benchmark's relative image paths against its checkout.
+For the matched comparison, retain original files and freeze a shared, metadata-free
+PNG representation of the decoded first frame, preserving dimensions and alpha.
+This follows the existing Base's still-image loading behavior for GIF/WebP and
+supplies identical reference inputs to both executors. Record original, canonical,
+and transport hashes. Every completed planning request must contain all expected
+reference-image hashes; evaluator requests are audited separately. Missing files
+or dropped references invalidate the attempt rather than producing task zeroes.
+`freeze_forum_inputs.py --tasks /absolute/path/to/tasks --checkout
+/absolute/path/to/visualwebarena --output /absolute/path/to/new/input-directory`
+creates this manifest, preserves the original files, and verifies decoded pixel
+hashes before any evaluation starts.
+
+`base_forum_adapter.py` calls the existing Base prompt, parser, actions, and
+official evaluator, with its ten-decision budget and 2.5-second action wait.
+Its legacy GPT name selects an existing prompt implementation only; every actual
+response must be Claude. An exception swallowed by the native runner cannot
+become a valid zero: exactly one completed official evaluation and valid model
+calls are required. Genuine negative and fractional official scores are retained.
+Model decisions are counted separately from the runner's automatic budget stop.
+
+`forum_pair_queue.py --protocol /absolute/path/to/frozen/protocol.json` resumes
+only missing method/task pairs. Its protocol freezes sources, original tasks,
+reference inputs, seed image, step budget, environment, retry budget, and a fixed
+counterbalanced method order. Each method/task receives a fresh owner-labeled
+container and the same official login procedure. Factory initialization satisfies
+all reset-required tasks; it never resets the original running forum. At most two
+new workers run, with admission respecting the shared limit of three Forum/OS
+workers, host memory, and disk floors. The existing shared relay keeps its global
+limits. Terminal inference/environment errors retain their logs, remain unscored,
+and use bounded retries/backoff. Valid score bytes are hash-protected and never
+rerun. Reports retain per-method denominators and the valid paired intersection;
+the full report is written only after all 170 pairs have valid scores.
+
+The reference-image fixture can exercise either executor with `--method base`
+or `--method seeact` plus `--reference-image-check`. It remains outside every
+benchmark denominator. The matched queue does not replace historical scores or
+establish a same-initial-state comparison with historical CausalAct controls.
 
 `prepare_forum_seed.py` starts only an owner-labeled container from the pinned
 image, checks readiness and disk space, then stops PostgreSQL cleanly before

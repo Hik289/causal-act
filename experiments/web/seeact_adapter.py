@@ -6,7 +6,9 @@ unchanged. This is a Claude adaptation, not the upstream GPT-4 configuration.
 import asyncio
 import base64
 import copy
+from collections import Counter
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -25,9 +27,74 @@ class ModelUnavailable(RuntimeError):
     """Invalid inference, never a scored task failure."""
 
 
-def validate_task(task):
-    if task.get('image'):
-        raise ValueError('Reference-image task input is not implemented; keep this case pending, not scored')
+def load_task_references(task, config_file, output, base_dir=None):
+    """Load every declared task image; missing input is an invalid attempt."""
+    from PIL import Image
+    references = task.get('image') or []
+    if isinstance(references, str):
+        references = [references]
+    if not isinstance(references, list) or not all(isinstance(p, str) for p in references):
+        raise ModelUnavailable('Invalid reference-image declaration')
+    loaded, audit = [], []
+    for index, name in enumerate(references):
+        if name.startswith(('http://', 'https://')):
+            request = urllib.request.Request(name, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                raw = response.read(32 * 1024**2 + 1)
+        else:
+            path = Path(name)
+            if not path.is_absolute():
+                path = (Path(base_dir) if base_dir else Path(config_file).parent) / path
+            raw = path.read_bytes()
+        if len(raw) > 32 * 1024**2:
+            raise ModelUnavailable('Reference image exceeds the recorded input budget')
+        with Image.open(io.BytesIO(raw)) as image:
+            image.load()
+            dimensions, original_format = image.size, image.format
+            if original_format in ('PNG', 'JPEG'):
+                sent = raw
+                mime = 'image/png' if original_format == 'PNG' else 'image/jpeg'
+            else:
+                stream = io.BytesIO()
+                image.save(stream, format='PNG')
+                sent, mime = stream.getvalue(), 'image/png'
+        destination = Path(output) / ('reference_' + str(index) + '.source')
+        destination.write_bytes(raw)
+        audit.append({'index': index, 'source': name, 'bytes': len(raw),
+                      'source_sha256': hashlib.sha256(raw).hexdigest(),
+                      'encoded_sha256': hashlib.sha256(sent).hexdigest(),
+                      'width': dimensions[0], 'height': dimensions[1],
+                      'original_format': original_format, 'encoded_mime': mime})
+        loaded.append({'type': 'image_url', 'image_url': {
+            'url': 'data:' + mime + ';base64,' + base64.b64encode(sent).decode(), 'detail': 'high'}})
+    (Path(output) / 'reference_inputs.json').write_text(json.dumps(audit, indent=2) + '\n')
+    return loaded, audit
+
+
+def attach_reference_images(messages, references):
+    messages = copy.deepcopy(messages)
+    if not references:
+        return messages
+    for message in messages:
+        if message.get('role') == 'user':
+            content = message.get('content', [])
+            if isinstance(content, str):
+                content = [{'type': 'text', 'text': content}]
+            message['content'] = content + [{'type': 'text', 'text':
+                'The following image(s) are task reference inputs, separate from the current webpage screenshot.'}] + copy.deepcopy(references)
+            return messages
+    raise ModelUnavailable('Native prompt has no user message for task reference images')
+
+
+def verify_reference_delivery(calls, expected_hashes):
+    planning = [call for call in calls if call.get('stage') == 'planning' and not call.get('error')]
+    if not planning:
+        raise ModelUnavailable('No completed planning requests')
+    required = Counter(expected_hashes)
+    for call in planning:
+        observed = Counter(image['sha256'] for image in call.get('images', []))
+        if required - observed:
+            raise ModelUnavailable('A frozen task reference image was missing from a planning request')
 
 
 def normalize_image_mime(messages):
@@ -58,22 +125,38 @@ class PacedClaude:
         self.credential_path = Path(credential_path)
         self.audit_path = Path(audit_path)
         self.calls = []
+        self.reference_inputs = []
+        self.stage = 'planning'
 
     def completion(self, **kwargs):
-        messages, images = normalize_image_mime(kwargs['messages'])
-        body = {'model': MODEL, 'messages': messages, 'max_tokens': kwargs.get('max_tokens', 4096)}
-        raw = json.dumps(body).encode()
-        if len(raw) > 28 * 1024**2:
-            raise ModelUnavailable('Request exceeds the existing relay ingress limit')
         record = {'started_unix': time.time(), 'transport_alias': kwargs.get('model'),
-                  'actual_model_expected': MODEL, 'images': images, 'request_bytes': len(raw),
-                  'request_sha256': hashlib.sha256(raw).hexdigest(),
+                  'actual_model_expected': MODEL, 'request_sha256': None,
+                  'stage': self.stage,
                   'requested_temperature': kwargs.get('temperature'),
                   'temperature_handling': 'unchanged shared Bedrock relay default'}
-        req = urllib.request.Request(self.endpoint, data=raw,
-                headers={'Content-Type': 'application/json',
-                         'Authorization': 'Bearer ' + self.credential_path.read_text().strip()})
         try:
+            messages = kwargs['messages']
+            if kwargs.get('_native'):
+                messages = attach_reference_images(messages, self.reference_inputs)
+            messages, images = normalize_image_mime(messages)
+            # Match the existing shared relay's large-image encoding, without
+            # resizing pixels. This also keeps the complete body below ingress.
+            if any(image['bytes'] > 3_700_000 for image in images):
+                from bedrock_image_transport import normalize_messages
+                messages, conversions = normalize_messages(messages)
+            else:
+                conversions = []
+            messages, sent_images = normalize_image_mime(messages)
+            body = {'model': MODEL, 'messages': messages, 'max_tokens': kwargs.get('max_tokens', 4096)}
+            raw = json.dumps(body).encode()
+            record.update(images=sent_images, image_conversions=conversions,
+                          native_reference_count=len(self.reference_inputs) if kwargs.get('_native') else 0,
+                          request_bytes=len(raw), request_sha256=hashlib.sha256(raw).hexdigest())
+            if len(raw) > 28 * 1024**2:
+                raise ModelUnavailable('Request exceeds the existing relay ingress limit')
+            req = urllib.request.Request(self.endpoint, data=raw,
+                    headers={'Content-Type': 'application/json',
+                             'Authorization': 'Bearer ' + self.credential_path.read_text().strip()})
             with urllib.request.urlopen(req, timeout=120) as response:
                 value = json.load(response)
                 record['status'] = response.status
@@ -101,11 +184,14 @@ class PacedClaude:
             with self.audit_path.open('a') as stream:
                 stream.write(json.dumps(record) + '\n')
 
+    def native_completion(self, **kwargs):
+        return self.completion(_native=True, **kwargs)
+
     def install_native_transport(self):
         # Native OpenAIEngine uses only litellm.completion. Keep its prompt
         # construction and parser; do not inherit its unbounded API retries.
         shim = types.ModuleType('litellm')
-        shim.completion = self.completion
+        shim.completion = self.native_completion
         sys.modules['litellm'] = shim
         existing = sys.modules.get('seeact.demo_utils.inference_engine')
         if existing is not None:
@@ -122,7 +208,7 @@ class PacedClaude:
             if call.get('served_model') not in (None, MODEL):
                 raise ModelUnavailable('A different model was served')
             if call.get('error'):
-                recovered = any(later.get('request_sha256') == call['request_sha256']
+                recovered = bool(call.get('request_sha256')) and any(later.get('request_sha256') == call['request_sha256']
                                 and later.get('served_model') == MODEL and not later.get('error')
                                 for later in self.calls[index + 1:])
                 if not recovered:
@@ -171,7 +257,7 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
     output.mkdir(exist_ok=False, parents=True)
     task_file = Path(task_file)
     task = json.loads(task_file.read_text())
-    validate_task(task)
+    bridge.reference_inputs, reference_audit = load_task_references(task, task_file, output, base_dir=checkout)
     sys.path.insert(0, str(Path(source) / 'seeact_package'))
     bridge.install_native_transport()
     os.environ['OPENAI_API_KEY'] = 'local-transport-shim-not-an-upstream-key'
@@ -230,13 +316,18 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
         await session.detach()
         final_url = agent.page.url
         observation = {'text': await agent.page.inner_text('body')}
-        score = await asyncio.to_thread(official_score, checkout, task_file, port, target, answer, observation, bridge)
+        bridge.stage = 'evaluation'
+        try:
+            score = await asyncio.to_thread(official_score, checkout, task_file, port, target, answer, observation, bridge)
+        finally:
+            bridge.stage = 'planning'
         bridge.validate_completed_calls()
         result = {'task_id': task['task_id'], 'score': score, 'valid': True,
                   'steps': len(summaries), 'final_url_before_evaluation': final_url,
                   'answer': answer, 'actions': summaries, 'model': MODEL,
                   'method': 'native SeeAct with Claude transport, text_choice_som',
                   'model_calls': len(bridge.calls), 'max_steps': max_steps,
+                  'reference_inputs': reference_audit,
                   'task_sha256': hashlib.sha256(task_file.read_bytes()).hexdigest(),
                   'official_evaluator_sha256': hashlib.sha256(
                       (Path(checkout) / 'evaluation_harness/evaluators.py').read_bytes()).hexdigest()}
