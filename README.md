@@ -21,7 +21,8 @@ audited Claude requests and the official live-page evaluator. A resumable
 170-task Forum queue freezes identical reference images and creates a fresh,
 owner-checked environment for each method/task. It preserves valid negative
 scores, rejects incomplete inference/evaluation, and reports paired denominators.
-Twenty-four interface/queue checks and reference-image fixtures cover these
+Browser routing keeps legacy absolute links inside each owned environment.
+Twenty-six interface/queue checks and reference-image fixtures cover these
 paths; preparation and fixture results are not benchmark scores. See the
 [adapter protocol](experiments/web/README_seeact.md).
 

@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--relay-endpoint', required=True)
     parser.add_argument('--credential-file', required=True)
     parser.add_argument('--origin', required=True)
+    parser.add_argument('--original-origin', required=True)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--original-task-sha256', required=True)
     parser.add_argument('--protocol-sha256', required=True)
@@ -63,12 +64,18 @@ def main():
             task_file.write_text(json.dumps(task, indent=2) + '\n')
         if args.method == 'seeact':
             result = asyncio.run(run_case(args.seeact_source, args.checkout, task_file,
-                                          output / 'execution', bridge, max_steps=args.max_steps))
+                                          output / 'execution', bridge, max_steps=args.max_steps,
+                                          original_origin=args.original_origin, environment_origin=args.origin))
         else:
             result = run_base_case(args.checkout, task_file, output / 'execution', bridge,
-                                   max_steps=args.max_steps)
+                                   max_steps=args.max_steps, original_origin=args.original_origin,
+                                   environment_origin=args.origin)
         if not math.isfinite(result['score']) or not 0 <= result['score'] <= 1:
             raise RuntimeError('Official evaluator returned an invalid score')
+        if result.get('origin_guard_contexts', 0) < 1:
+            raise RuntimeError('Independent environment origin guard was not installed')
+        if result.get('origin_guard_errors'):
+            raise RuntimeError('Independent environment origin routing failed')
         references = json.loads(Path(args.reference_manifest).read_text())
         verify_reference_delivery(bridge.calls, [x['transport_sha256'] for x in references])
         result.update(run_id=args.run_id, method_key=args.method,

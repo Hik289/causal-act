@@ -211,7 +211,8 @@ class Queue:
                     '--method', method, '--task-file', str(attempt / 'task.json'), '--output', str(attempt),
                     '--checkout', self.protocol['checkout'], '--seeact-source', self.protocol['seeact_source'],
                     '--relay-endpoint', endpoint, '--credential-file', self.protocol['credential_file'],
-                    '--origin', origin, '--run-id', self.protocol['run_id'],
+                    '--origin', origin, '--original-origin', self.protocol['original_origin'],
+                    '--run-id', self.protocol['run_id'],
                     '--original-task-sha256', task['sha256'], '--protocol-sha256', self.protocol_hash,
                     '--reference-manifest', str(attempt / 'reference_manifest.json'),
                     '--max-steps', str(self.protocol['max_steps'])]

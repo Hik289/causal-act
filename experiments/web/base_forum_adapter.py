@@ -20,7 +20,8 @@ def accepted_evaluation(evaluations, bridge):
     return evaluations[0]
 
 
-def run_base_case(checkout, task_file, output, bridge, max_steps=10):
+def run_base_case(checkout, task_file, output, bridge, max_steps=10,
+                  original_origin=None, environment_origin=None):
     output = Path(output)
     output.mkdir(exist_ok=False, parents=True)
     task_file = Path(task_file).resolve()
@@ -71,6 +72,10 @@ def run_base_case(checkout, task_file, output, bridge, max_steps=10):
 
     handler = logging.FileHandler(output / 'official.log')
     native.logger.addHandler(handler)
+    from forum_origin_guard import guard_sync_contexts
+    origin_redirects = []
+    guard = guard_sync_contexts(original_origin, environment_origin, origin_redirects)
+    guard.__enter__()
     try:
         openai_utils.client.chat.completions.create = bridge.sdk_create
         native.evaluator_router = router
@@ -93,6 +98,9 @@ def run_base_case(checkout, task_file, output, bridge, max_steps=10):
                     method='existing VWA Base executor with Claude transport',
                     prompt_transport_alias=alias, max_steps=max_steps,
                     steps=decisions[0],
+                    origin_redirects=[x for x in origin_redirects if 'mode' in x],
+                    origin_guard_errors=[x for x in origin_redirects if x.get('event') == 'guard_error'],
+                    origin_guard_contexts=sum(x.get('event') == 'context_guard_installed' for x in origin_redirects),
                     model_calls=len(bridge.calls), reference_inputs=reference_audit,
                     post_scoring_artifact_error=(output / 'error.txt').exists(),
                     task_sha256=hashlib.sha256(task_file.read_bytes()).hexdigest(),
@@ -105,5 +113,6 @@ def run_base_case(checkout, task_file, output, bridge, max_steps=10):
         openai_utils.client.chat.completions.create = original_create
         native.logger.removeHandler(handler)
         handler.close()
+        guard.__exit__(None, None, None)
         os.chdir(cwd)
         sys.argv = argv

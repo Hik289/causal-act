@@ -252,7 +252,8 @@ def official_score(checkout, task_file, cdp_port, target_id, answer, observation
             trajectory=trajectory, config_file=str(task_file), page=page))
 
 
-async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
+async def run_case(source, checkout, task_file, output, bridge, max_steps=10,
+                   original_origin=None, environment_origin=None):
     output = Path(output)
     output.mkdir(exist_ok=False, parents=True)
     task_file = Path(task_file)
@@ -268,6 +269,7 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
     original_context = native.normal_new_context_async
     original_factory = native.engine_factory
     port = free_loopback_port()
+    origin_redirects = []
 
     async def launch(playwright, headless=False, args=None):
         # The pinned upstream helper hardcodes headless=False. This wrapper
@@ -279,7 +281,11 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
         if task.get('storage_state'):
             kwargs['storage_state'] = task['storage_state']
         kwargs['geolocation'] = task.get('geolocation')
-        return await original_context(browser, **kwargs)
+        result = await original_context(browser, **kwargs)
+        if original_origin:
+            from forum_origin_guard import guard_async_context
+            await guard_async_context(result, original_origin, environment_origin, origin_redirects)
+        return result
 
     native.normal_launch_async = launch
     native.normal_new_context_async = context
@@ -328,6 +334,9 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10):
                   'method': 'native SeeAct with Claude transport, text_choice_som',
                   'model_calls': len(bridge.calls), 'max_steps': max_steps,
                   'reference_inputs': reference_audit,
+                  'origin_redirects': [x for x in origin_redirects if 'mode' in x],
+                  'origin_guard_errors': [x for x in origin_redirects if x.get('event') == 'guard_error'],
+                  'origin_guard_contexts': sum(x.get('event') == 'context_guard_installed' for x in origin_redirects),
                   'task_sha256': hashlib.sha256(task_file.read_bytes()).hexdigest(),
                   'official_evaluator_sha256': hashlib.sha256(
                       (Path(checkout) / 'evaluation_harness/evaluators.py').read_bytes()).hexdigest()}
