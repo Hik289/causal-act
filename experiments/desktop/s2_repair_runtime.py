@@ -103,14 +103,52 @@ def guarded_initial_reset(reset, audit_directory, known_cursor_crops=()):
 
 
 def install_initial_frame_guard(audit_directory, known_cursor_crops=()):
-    """Opt in only when setup requires visible UI; never inspect later actions."""
-    from desktop_env.desktop_env import DesktopEnv
-    if getattr(DesktopEnv, "_causalact_initial_frame_guard", False):
+    """Check the first model input after the runner's existing readiness wait."""
+    import lib_run_single
+    if getattr(lib_run_single, "_causalact_initial_frame_guard", False):
         return
-    DesktopEnv.reset = guarded_initial_reset(
-        DesktopEnv.reset, audit_directory, known_cursor_crops
+    lib_run_single.run_single_example = guarded_initial_example(
+        lib_run_single.run_single_example, audit_directory, known_cursor_crops
     )
-    DesktopEnv._causalact_initial_frame_guard = True
+    lib_run_single._causalact_initial_frame_guard = True
+
+
+def guarded_initial_example(run_example, audit_directory, known_cursor_crops=()):
+    """Leave reset, readiness waits, and later observations unchanged."""
+    fingerprints = frozenset(known_cursor_crops)
+
+    @wraps(run_example)
+    def checked(agent, env, example, *args, **kwargs):
+        predict = agent.predict
+        first = True
+
+        @wraps(predict)
+        def first_prediction(instruction, obs, *predict_args, **predict_kwargs):
+            nonlocal first
+            if first:
+                problem = initial_frame_problem(obs["screenshot"], fingerprints)
+                if problem:
+                    directory = Path(audit_directory)
+                    directory.mkdir(parents=True, exist_ok=True)
+                    path = directory / (uuid.uuid4().hex + ".png")
+                    path.write_bytes(screenshot_image_bytes(obs["screenshot"]))
+                    path.with_suffix(".json").write_text(json.dumps({
+                        "task_id": example.get("id"),
+                        "reason": problem,
+                        "classification": "invalid_environment_unscored",
+                        "observation_stage": "first_model_input_after_runner_wait",
+                    }))
+                    raise UnrenderedDesktop(problem + "; no model action has run")
+                first = False
+            return predict(instruction, obs, *predict_args, **predict_kwargs)
+
+        agent.predict = first_prediction
+        try:
+            return run_example(agent, env, example, *args, **kwargs)
+        finally:
+            agent.predict = predict
+
+    return checked
 
 
 def checked_dag_parser(parser, retain):

@@ -196,7 +196,10 @@ scores. A failed file-open setup is also unscored, rather than a task failure.
 For setups that require a visible initial desktop or application,
 `install_initial_frame_guard(audit_directory, known_cursor_crops)` can reject an
 all-black framebuffer or an exact, recorded cursor-only image pattern before
-the first model action. It retains the original image and records an unscored
+the first model request, on the actual input observation after the runner's
+existing readiness wait and fresh capture. An immediate reset screenshot may
+still be loading and must not replace that observation. The guard leaves the
+runner's wait, capture, and task setup unchanged. It retains the original image and records an unscored
 environment error. Record cursor fingerprints before the recovery run; do not
 use task success to choose them. The guard does not inspect later model actions
 or replace images. Leave it disabled for tasks whose legitimate initial state

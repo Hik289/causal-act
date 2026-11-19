@@ -16,7 +16,7 @@
 
 ## Recent Commit
 
-**November 18, 2026** — Agent S2 and S3 now require an explicit UI-TARS 1.5
+**November 19, 2026** — Agent S2 and S3 now require an explicit UI-TARS 1.5
 processed-image frame. The frame is recorded from the deployed processor before
 evaluation, and earlier coordinate protocols retain separate results. S2 keeps
 native image bytes for OCR. Runtime repairs also cover malformed DAG replies,
@@ -25,8 +25,9 @@ Screenshot-only observations preserve the official evaluator's access to
 accessibility trees; a worker check verifies that these paths remain separate.
 An optional offline install keeps the official evaluator wheel and checks its
 version before scoring. An initial-frame check can reject known unrendered
-desktops before any model action, retaining the original image for audit.
-Validation includes twenty-four unit tests, both Agent S backends, independent
+desktops on the actual first model input, after the runner's existing readiness
+wait and fresh capture, retaining the original image for audit.
+Validation includes twenty-seven unit tests, both Agent S backends, independent
 synthetic geometry checks, real OCR, the original Calc file and evaluator
 dependency command, and the previously rejected Web images sent to Bedrock.
 [Commit history](https://github.com/Hik289/causal-act/commits/main/)

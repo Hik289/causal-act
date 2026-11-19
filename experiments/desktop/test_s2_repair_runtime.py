@@ -16,6 +16,7 @@ from s2_repair_runtime import (
     cursor_crop_fingerprint,
     initial_frame_problem,
     guarded_initial_reset,
+    guarded_initial_example,
     UnrenderedDesktop,
 )
 
@@ -170,6 +171,66 @@ class InitialFrameTests(unittest.TestCase):
                 reset(Environment())
             from pathlib import Path
             self.assertEqual(next(Path(folder).glob("*.png")).read_bytes(), png)
+
+    def test_runner_wait_and_refreshed_observation_precede_guard(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        blank = {"screenshot": self.png(Image.new("RGB", (80, 60)))}
+        ready = {"screenshot": self.png(Image.new("RGB", (80, 60), "white"))}
+        events = []
+        agent = SimpleNamespace(predict=lambda instruction, obs: events.append(obs))
+        original = agent.predict
+
+        def runner(agent, env, example):
+            events.append(blank)  # reset returns before the runner's fixed wait
+            events.append("existing readiness wait")
+            agent.predict("instruction", ready)  # runner captures a new frame
+            return "official result"
+
+        with TemporaryDirectory() as folder:
+            guarded = guarded_initial_example(runner, folder)
+            self.assertEqual(guarded(agent, None, {"id": "diagnostic"}), "official result")
+        self.assertEqual(events, [blank, "existing readiness wait", ready])
+        self.assertIs(agent.predict, original)
+
+    def test_unrendered_first_model_input_is_retained_without_request(self):
+        from PIL import Image
+        from pathlib import Path
+        from types import SimpleNamespace
+        png = self.png(Image.new("RGB", (80, 60)))
+        calls = []
+        agent = SimpleNamespace(predict=lambda *args: calls.append(args))
+        original = agent.predict
+        runner = lambda agent, env, example: agent.predict("instruction", {"screenshot": png})
+        with TemporaryDirectory() as folder:
+            guarded = guarded_initial_example(runner, folder)
+            with self.assertRaises(UnrenderedDesktop):
+                guarded(agent, None, {"id": "diagnostic"})
+            self.assertEqual(next(Path(folder).glob("*.png")).read_bytes(), png)
+            audit = json.loads(next(Path(folder).glob("*.json")).read_text())
+            self.assertEqual(audit["observation_stage"], "first_model_input_after_runner_wait")
+        self.assertEqual(calls, [])
+        self.assertIs(agent.predict, original)
+
+    def test_later_black_frame_is_not_reclassified_and_next_task_is_checked(self):
+        from PIL import Image
+        from types import SimpleNamespace
+        blank = {"screenshot": self.png(Image.new("RGB", (80, 60)))}
+        ready = {"screenshot": self.png(Image.new("RGB", (80, 60), "white"))}
+        calls = []
+        agent = SimpleNamespace(predict=lambda instruction, obs: calls.append(obs))
+
+        def runner(agent, env, example):
+            for obs in example["observations"]:
+                agent.predict("instruction", obs)
+
+        with TemporaryDirectory() as folder:
+            guarded = guarded_initial_example(runner, folder)
+            guarded(agent, None, {"id": "first", "observations": [ready, blank]})
+            self.assertEqual(calls, [ready, blank])
+            with self.assertRaises(UnrenderedDesktop):
+                guarded(agent, None, {"id": "second", "observations": [blank]})
+        self.assertEqual(calls, [ready, blank])
 
 
 if __name__ == "__main__":
