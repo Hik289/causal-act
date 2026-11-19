@@ -22,7 +22,7 @@ audited Claude requests and the official live-page evaluator. A resumable
 owner-checked environment for each method/task. It preserves valid negative
 scores, rejects incomplete inference/evaluation, and reports paired denominators.
 Browser routing keeps legacy absolute links inside each owned environment.
-Twenty-six interface/queue checks and reference-image fixtures cover these
+Twenty-seven interface/queue checks and reference-image fixtures cover these
 paths; preparation and fixture results are not benchmark scores. See the
 [adapter protocol](experiments/web/README_seeact.md).
 

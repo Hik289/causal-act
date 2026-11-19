@@ -87,7 +87,8 @@ all reset-required tasks; it never resets the original running forum. New browse
 contexts redirect legacy absolute navigation URLs with HTTP 307 and proxy legacy
 subresources/API requests to their own environment, preserving request methods
 and bodies without contacting the old service. This guard is installed before
-navigation for both executors; routing errors remain invalid attempts. At most two
+navigation for both executors, including the benchmark's `reddit.com` prompt
+aliases; routing errors remain invalid attempts. At most two
 new workers run, with admission respecting the shared limit of three Forum/OS
 workers, host memory, and disk floors. The existing shared relay keeps its global
 limits. Terminal inference/environment errors retain their logs, remain unscored,

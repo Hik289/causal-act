@@ -4,6 +4,21 @@ import hashlib
 from urllib.parse import urlsplit, urlunsplit
 
 
+def origins(original):
+    # Official VWA's Forum URL mapping uses reddit.com in model prompts.
+    return [original, 'http://reddit.com', 'https://reddit.com',
+            'http://www.reddit.com', 'https://www.reddit.com']
+
+
+def declared_origin(url, original):
+    parsed = urlsplit(url)
+    for origin in origins(original):
+        expected = urlsplit(origin)
+        if (parsed.scheme, parsed.netloc) == (expected.scheme, expected.netloc):
+            return origin
+    raise ValueError('URL is outside the declared Forum origin mappings')
+
+
 def destination(url, original, current):
     parsed, before, after = urlsplit(url), urlsplit(original), urlsplit(current)
     if (parsed.scheme, parsed.netloc) != (before.scheme, before.netloc):
@@ -29,7 +44,7 @@ async def guard_async_context(context, original, current, audit):
     async def redirect(route):
         url = route.request.url
         try:
-            target = destination(url, original, current)
+            target = destination(url, declared_origin(url, original), current)
             if route.request.method == 'OPTIONS':
                 note(audit, url, 'local_preflight', 204)
                 await route.fulfill(status=204, headers=cors_headers(current, route.request.headers.get('access-control-request-headers', '')), body='')
@@ -44,7 +59,8 @@ async def guard_async_context(context, original, current, audit):
         except Exception as error:
             audit.append({'event': 'guard_error', 'error': type(error).__name__})
             await route.abort()
-    await context.route(original.rstrip('/') + '/**', redirect)
+    for origin in origins(original):
+        await context.route(origin.rstrip('/') + '/**', redirect)
     audit.append({'event': 'context_guard_installed', 'mode': 'async'})
 
 
@@ -60,7 +76,7 @@ def guard_sync_contexts(original, current, audit):
         def redirect(route):
             url = route.request.url
             try:
-                target = destination(url, original, current)
+                target = destination(url, declared_origin(url, original), current)
                 if route.request.method == 'OPTIONS':
                     note(audit, url, 'local_preflight', 204)
                     route.fulfill(status=204, headers=cors_headers(current, route.request.headers.get('access-control-request-headers', '')), body='')
@@ -75,7 +91,8 @@ def guard_sync_contexts(original, current, audit):
             except Exception as error:
                 audit.append({'event': 'guard_error', 'error': type(error).__name__})
                 route.abort()
-        context.route(original.rstrip('/') + '/**', redirect)
+        for origin in origins(original):
+            context.route(origin.rstrip('/') + '/**', redirect)
         audit.append({'event': 'context_guard_installed', 'mode': 'sync'})
         return context
     Browser.new_context = create
