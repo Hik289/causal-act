@@ -29,6 +29,12 @@ prior, applies one training-derived class-weight correction, and reserves new
 forums for the original/adjusted checkpoint comparison. Original scores remain
 intact; the followup makes no claim of an improved held-out result.
 
+An inference-only followup also freezes the original Full/A+V checkpoints and
+selects V's fusion weight using validation cases only. Its original/calibrated
+comparison uses preselected, disjoint forums after a strict validation gate.
+The original results remain visible, including any negative or mixed findings;
+a zero fusion weight is explicitly a disabled-V setting.
+
 Agent S2 and S3 also require an explicit UI-TARS 1.5
 processed-image frame. The frame is recorded from the deployed processor before
 evaluation, and earlier coordinate protocols retain separate results. S2 keeps

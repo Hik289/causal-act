@@ -72,8 +72,23 @@ The protocol supplies the original run/model/Python paths, derived class
 weights, and validation gate. Existing reports and partial predictions are
 never overwritten to restart a comparison.
 
+`verifier_calibration_followup.py` implements a separate, registered response
+to the Full and A+V results. It keeps all validation-selected A/V/I checkpoints
+frozen and changes only V's scalar contribution to action log probabilities.
+The fixed grid is 0, 0.25, 0.5, and 1. Only the original 40 validation cases
+select the weight. The gate requires a strict gain in three-state PairCausalAcc
+without decreasing the sum of targeted and unrelated accuracy. Ties favor
+the weight closest to the original value of 1. An unmet gate produces no test
+score. After freezing, original and calibrated fusion share the same raw
+outputs on the preselected 80 cases from 20 previously unused forums. These
+are semantic component comparisons, not task-execution success or evidence
+that the full three-domain experiment is complete. Partial score files are
+resumed by case ID; original reports, weights, and predictions are preserved.
+`run_verifier_calibration.py` uses one explicitly allocated free GPU without
+exceeding the original study's four simultaneous local workers.
+
 Run the protocol checks from this directory in the training environment:
 
 ```bash
-python -m unittest test_forum_suite test_balanced_followup
+python -m unittest test_forum_suite test_balanced_followup test_verifier_calibration
 ```
