@@ -21,6 +21,7 @@ It matches the selected GPU by UUID and PCI bus, requires single-device Vulkan
 enumeration and retains the strict post-boot identity check. Original protocols,
 invalid attempts, policy inputs and route retry limits remain protected. See
 the [native route protocol](experiments/driving/README_native_route_queue.md).
+Restarts validate existing GPU setup receipts without rewriting protected files.
 
 **November 20, 2026** — Corrected synthetic UI-TARS transport references that
 were smaller than the deployed processor accepts. A bound repair preserves

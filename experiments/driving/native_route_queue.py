@@ -426,9 +426,11 @@ class Queue:
                 if json.loads(raw.read_text()) != value:
                     raise RuntimeError('GPU setup state and original method result disagree')
                 receipt[method] = dict(raw_file=str(raw), raw_sha256=sha(raw), result=value)
-        if receipt_file.exists() and json.loads(receipt_file.read_text()) != receipt:
-            raise RuntimeError('Original GPU setup receipt changed')
-        atomic(receipt_file, receipt)
+        if receipt_file.exists():
+            if json.loads(receipt_file.read_text()) != receipt:
+                raise RuntimeError('Original GPU setup receipt changed')
+        else:
+            atomic(receipt_file, receipt)
         for method, spec in self.protocol['methods'].items():
             result = previous.get('methods', {}).get(method, {})
             if not result.get('native_GPU_setup_passed'):

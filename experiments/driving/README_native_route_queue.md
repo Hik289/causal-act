@@ -14,6 +14,8 @@ then waits for one GPU to remain unoccupied for 60 seconds, with at least
 36,000 MiB free, available simulator ports, and at least 10 GiB disk space.
 Unknown processes are never terminated. A foreign compute process entering
 the selected GPU stops only this controller's owned attempt.
+An existing GPU setup receipt is checked and kept byte-for-byte with its
+original timestamp; restarting does not rewrite this protected input.
 
 `vulkan_devices.c` enumerates device UUIDs through the installed Vulkan loader;
 it creates no logical device or GPU allocation. Vulkan adapter indices are

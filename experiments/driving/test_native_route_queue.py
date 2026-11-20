@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
 import tempfile
+import threading
 import unittest
+from unittest.mock import patch
 
 import native_route_queue
 from native_route_queue import (mapped_vulkan_index, valid_record, mesa_pci_selector,
@@ -89,6 +91,27 @@ class NativeRouteQueueTests(unittest.TestCase):
                 repair.write_text(json.dumps(dict(value, **patch)))
                 with self.assertRaises(RuntimeError):
                     runtime_repair(protocol, repair)
+
+    def test_restart_does_not_rewrite_a_protected_GPU_setup_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root/'setup'/'vad'/'result.json'
+            raw.parent.mkdir(parents=True)
+            result = dict(native_GPU_setup_passed=True, benchmark_scores=0)
+            raw.write_text(json.dumps(result))
+            receipt = {'vad':dict(raw_file=str(raw),raw_sha256=sha(raw),result=result)}
+            path = root/'GPU_setup_receipt.json'
+            path.write_text(json.dumps(receipt))
+            native_route_queue.os.utime(path, ns=(123456789000,123456789000))
+            before = path.read_bytes(), path.stat().st_mtime_ns
+            queue = object.__new__(native_route_queue.Queue)
+            queue.protocol = dict(GPU_setup_protocol=str(root/'setup'/'protocol.json'),methods={})
+            queue.root, queue.records, queue.state, queue.stop = root, {}, {}, threading.Event()
+            queue.wait_predecessor = lambda: dict(methods={'vad':result})
+            queue.save = lambda: self.assertEqual((path.read_bytes(),path.stat().st_mtime_ns),before)
+            with patch.object(native_route_queue.signal, 'signal'):
+                queue.run()
+            self.assertEqual((path.read_bytes(),path.stat().st_mtime_ns),before)
 
     def fixture(self, root, status='Failed - TickRuntime', score=0.):
         raw, log = root/'results.json', root/'evaluation.log'
