@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import types
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 from uitars_adapter import BrowserActions, UITarsClient, planning_messages, MODEL
@@ -24,6 +25,17 @@ class Recorder:
 
 
 class UITarsAdapterTests(unittest.TestCase):
+    def test_http_failure_retains_bounded_diagnostics_and_has_no_response(self):
+        with tempfile.TemporaryDirectory() as folder:
+            client=UITarsClient('http://fixture',Path(folder)/'audit.jsonl')
+            failure=urllib.error.HTTPError('http://fixture',500,'error',{},io.BytesIO(b'processor failed '*1000))
+            with patch('urllib.request.urlopen',side_effect=failure), self.assertRaisesRegex(ModelUnavailable,'500'):
+                client.complete([{'role':'user','content':'task'}])
+            record=client.calls[0]
+            self.assertEqual(record['status'],500)
+            self.assertEqual(len(record['error_body']),4096)
+            self.assertNotIn('response',record)
+
     def test_history_retains_every_reference_and_current_image_last(self):
         references = [{'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(b'ref').decode()}}]
         messages = planning_messages('native prompt', references, [b'0',b'1',b'2',b'3'], ['a0','a1','a2'])

@@ -6,6 +6,14 @@ WebVoyager finishes its own scores and releases its evaluation slot. Scripted
 fixtures are preparation, excluded from every benchmark denominator. Actual
 UI-TARS transport must pass before formal scoring starts.
 
+Synthetic reference fixtures use the actual processor's patch factor and
+minimum-pixel metadata. The original 17×19 fixtures were rejected before
+inference; their three invalid transport attempts remain archived. A bound
+environment repair can replace only the synthetic preflight images and grant
+one persistent additional preflight attempt. It preserves the benchmark
+protocol, real task references, service, generation settings and formal-case
+retry budgets. HTTP failures retain their status and a bounded error body.
+
 The native source is [ByteDance UI-TARS](https://github.com/bytedance/UI-TARS),
 pinned at `582f3a7ea5d285ee8ed9e2e84048d1ab01453c49`. Its unmodified
 `codes/ui_tars/action_parser.py` performs Qwen2.5-VL postprocessing. The local

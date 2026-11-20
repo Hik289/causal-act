@@ -72,12 +72,28 @@ def technical_preflight(protocol, root):
     return receipt
 
 
-def run(protocol_file):
+def run(protocol_file, runtime_repair_file=None):
     path = Path(protocol_file).resolve()
     root = path.parent
     protocol = json.loads(path.read_text())
-    lock = (root / 'deferred_controller.lock').open('a')
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    repair, repair_path = None, Path(runtime_repair_file).resolve() if runtime_repair_file else None
+    if repair_path:
+        repair = json.loads(repair_path.read_text())
+        if (repair['base_protocol_sha256'] != hashlib.sha256(path.read_bytes()).hexdigest()
+            or Path(repair['source_dir']).resolve() != Path(__file__).resolve().parent
+            or repair['environment_repair_only'] is not True
+            or repair.get('technical_preflight_attempts') != 1
+            or not repair['repair_id'].replace('_','').isalnum()):
+            raise RuntimeError('Unexpected UI-TARS technical repair identity or allowance')
+        for name, digest in repair['source_files'].items():
+            if hashlib.sha256(Path(name).read_bytes()).hexdigest() != digest:
+                raise RuntimeError('Technical repair source or fixture changed')
+    with (root / 'deferred_controller.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return run_locked(path, root, protocol, repair, repair_path)
+
+
+def run_locked(path, root, protocol, repair, repair_path):
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     predecessor = protocol['start_after']
@@ -103,13 +119,25 @@ def run(protocol_file):
             raise RuntimeError('Frozen UI-TARS input/source changed')
     receipt_file = root / 'technical_preflight.json'
     if not receipt_file.exists():
-        for index in range(protocol['attempts_per_case']):
-            attempt = root / ('technical_attempt' + str(index + 1))
+        technical_protocol = dict(protocol)
+        if repair:
+            technical_protocol['technical_preflight_images'] = repair['technical_preflight_images']
+            attempt_root = root / repair['repair_id']
+            attempt_root.mkdir(exist_ok=True)
+        else:
+            attempt_root = root
+        count = 1 if repair else protocol['attempts_per_case']
+        for index in range(count):
+            attempt = attempt_root / ('technical_attempt' + str(index + 1))
             if attempt.exists():
                 continue
             attempt.mkdir()
             try:
-                receipt = technical_preflight(protocol, attempt)
+                receipt = technical_preflight(technical_protocol, attempt)
+                if repair:
+                    receipt.update(technical_repair_id=repair['repair_id'],
+                        runtime_repair_sha256=hashlib.sha256(repair_path.read_bytes()).hexdigest(),
+                        original_benchmark_protocol_unchanged=True)
                 atomic(attempt / 'receipt.json', receipt)
                 atomic(receipt_file, dict(receipt, attempt=str(attempt)))
                 break
@@ -123,11 +151,12 @@ def run(protocol_file):
         return
     atomic(root / 'deferred_status.json', dict(controller_pid=os.getpid(), status='formal frozen queue started',
         technical_preflight=str(receipt_file)))
-    Queue(path).run()
+    Queue(path, repair_path).run()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--protocol', required=True)
+    parser.add_argument('--runtime-repair')
     args = parser.parse_args()
-    run(args.protocol)
+    run(args.protocol, args.runtime_repair)

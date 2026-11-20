@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Corrected synthetic UI-TARS transport references that
+were smaller than the deployed processor accepts. A bound repair preserves
+the three invalid preflight attempts and permits one corrected check without
+changing benchmark inputs or formal-case retry budgets. HTTP failure audits
+now retain bounded diagnostics. See the
+[UI-TARS protocol](experiments/web/README_uitars.md).
+
 **November 20, 2026** — Added a resumable native VAD/UniAD/DriveTransformer
 100-route queue that waits for GPU setup and unoccupied resources. Vulkan
 adapter indices are matched by physical UUID and checked against the actual

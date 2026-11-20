@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -63,6 +64,12 @@ class UITarsClient:
                 raise ModelUnavailable('Empty UI-TARS response')
             record.update(response=text, usage=result.get('usage'), finish_reason=result['choices'][0].get('finish_reason'))
             return text
+        except urllib.error.HTTPError as error:
+            with error:
+                error_body = error.read(4096).decode(errors='replace')
+            record.update(status=error.code, error=type(error).__name__,
+                          error_body=error_body)
+            raise ModelUnavailable('UI-TARS HTTP failure: ' + str(error.code)) from error
         except Exception as error:
             record['error'] = type(error).__name__
             raise ModelUnavailable('UI-TARS transport or response failure') from error

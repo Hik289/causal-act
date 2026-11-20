@@ -3,6 +3,7 @@ import argparse
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import os
 from pathlib import Path
 import threading
@@ -48,10 +49,12 @@ def run(checkout, contract, output):
     geometry = json.loads(Path(contract).read_text())
     width, height = geometry['screenshot_size']
     mw, mh = geometry['model_frame_size']
+    factor = geometry['patch_size'] * geometry['merge_size']
+    reference_side = math.ceil(math.sqrt(geometry['min_pixels']) / factor) * factor
     images = []
     for index, color in enumerate(['red', 'blue']):
         path = out / ('reference_' + str(index) + '.png')
-        Image.new('RGB', (17 + index, 19 + index), color).save(path)
+        Image.new('RGB', (reference_side + index * factor, reference_side + index * factor), color).save(path)
         images.append(str(path.resolve()))
     responses = ["Thought: address navigation fixture.\nAction: hotkey(key='ctrl l')",
         "Thought: address navigation fixture.\nAction: type(content='" + origin + "/target\\n')",
