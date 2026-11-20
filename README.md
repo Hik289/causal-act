@@ -16,6 +16,12 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added serial CUDA weight staging for native UI-TARS
+visual-memory peaks. An idle decoder layer returns to its original GPU before
+decoding, with an exact state-value round-trip check. Model inputs, fp16
+computation and native forward functions remain fixed. Benchmark scoring requires
+separate request verification and a bounded missing-case repair.
+
 **November 20, 2026** — Added a receipt-checked local endpoint override for
 UI-TARS memory recovery. It preserves the frozen input and generation contract,
 existing valid results and bounded per-task retry allowances. Other methods and

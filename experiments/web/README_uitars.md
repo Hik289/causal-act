@@ -104,3 +104,18 @@ additional attempt each for this repair. Preserve all valid scores, the original
 attempts and technical-check budget. The original queue lock, disk/memory checks,
 three-worker limit and reference-control ownership still apply. This repair is
 not a same-model causal intervention result or a reason to rerun valid zeroes.
+
+When visual attention and decoding need headroom at different times,
+`uitars_cuda_staging.stage_first_decoder_during_vision` temporarily moves the
+unused first decoder layer from CUDA0 to CUDA1. It calls the unchanged native
+visual forward function, then restores the layer to CUDA0 before native decoding.
+All computation remains CUDA fp16. The first transfer round trip checks every
+layer state tensor for exact value equality using host-side verification copies;
+those copies are not model inputs or CPU model computation.
+
+The helper rejects training, offloaded placements, unexpected architectures,
+insufficient destination memory and duplicate installation. It restores weights
+even if native visual inference raises. Serial inference is required. Preserve
+prior failed attempts and require byte-identical historical request checks before
+a separately registered missing-case attempt. Changing image resolution, history,
+token limits, numerical precision or weight values is outside this repair.
