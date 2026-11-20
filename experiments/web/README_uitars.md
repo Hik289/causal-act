@@ -81,3 +81,26 @@ Existing Base/SeeAct/WebVoyager runtime sources, valid positive and negative
 scores, and the E8 single-image and S2 frame protocols remain separately
 identified. Completion of these fixtures does not complete the external
 baseline or the full 910-task benchmark.
+# Recovering exhausted native memory errors
+
+A separately bound environment repair can route missing UI-TARS cases to a
+verified local service through `runtime_environment`. It requires a hashed
+technical receipt, the native model identity, unchanged input and generation
+contracts, and zero benchmark scores from the service checks. External URLs,
+credentials in endpoints and other planning methods are rejected. The frozen
+protocol file and original service are retained.
+
+The observed failure was CUDA allocation inside visual attention. A new service
+can use idle GPUs with the same fp16 checkpoint and an explicit module placement
+chosen from checkpoint tensor sizes, reserving activation memory on the vision
+GPU. Image bytes, thumbnail processing, history, prompts, token limits, decoding
+and actions remain fixed. Check a byte-identical successful request and an exact
+previously failing multi-image request before admitting formal cases; record
+the output comparison without selecting for semantic success. A failed auto
+placement check and any invalid inference logs remain preserved.
+
+Resume only specifically registered missing method/task identities, at most one
+additional attempt each for this repair. Preserve all valid scores, the original
+attempts and technical-check budget. The original queue lock, disk/memory checks,
+three-worker limit and reference-control ownership still apply. This repair is
+not a same-model causal intervention result or a reason to rerun valid zeroes.

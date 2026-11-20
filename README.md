@@ -16,6 +16,11 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a receipt-checked local endpoint override for
+UI-TARS memory recovery. It preserves the frozen input and generation contract,
+existing valid results and bounded per-task retry allowances. Other methods and
+external endpoints are rejected. See the [UI-TARS protocol](experiments/web/README_uitars.md).
+
 **November 20, 2026** — Added a separate ThinkTwice recording-camera adapter
 that preserves its four RGB cameras, LiDAR history and native control methods.
 It fixes setup with recording disabled and rejects unexpected debug dependencies.

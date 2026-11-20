@@ -15,6 +15,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 
 from prepare_forum_seed import command, owned_container
 
@@ -48,6 +49,31 @@ def valid_score(path, task_id, method, run_id, original_sha, protocol_sha):
         or not math.isfinite(score['score']) or not 0 <= score['score'] <= 1):
         raise RuntimeError('Unexpected score identity; manual reconciliation required')
     return score
+
+
+def runtime_environment(protocol, repair):
+    """A bound memory repair may route only UI-TARS to a verified local service."""
+    environment = dict(protocol['environment'])
+    if not repair or 'uitars_endpoint' not in repair:
+        return environment
+    if protocol.get('methods') != ['uitars'] or repair.get('environment_repair_only') is not True:
+        raise RuntimeError('UI-TARS endpoint repair cannot change another policy')
+    endpoint = repair['uitars_endpoint']
+    url = urlsplit(endpoint)
+    if (url.scheme != 'http' or url.hostname != '127.0.0.1' or url.username or url.password
+        or url.port is None or not 1024 <= url.port <= 65535 or url.query or url.fragment
+        or url.path != '/v1/chat/completions'):
+        raise RuntimeError('UI-TARS memory repair requires a local model endpoint')
+    receipt = Path(repair['uitars_service_receipt'])
+    if hashlib.sha256(receipt.read_bytes()).hexdigest() != repair['uitars_service_receipt_sha256']:
+        raise RuntimeError('UI-TARS memory service receipt changed')
+    value = json.loads(receipt.read_text())
+    if (value.get('endpoint') != endpoint or value.get('model') != 'ui-tars-1.5-7b'
+        or value.get('same_input_and_generation_contract') is not True
+        or value.get('transport_checks_passed') is not True or value.get('benchmark_scores') != 0):
+        raise RuntimeError('UI-TARS memory service contract is unverified')
+    environment['CAUSALACT_UITARS_ENDPOINT'] = endpoint
+    return environment
 
 
 class Queue:
@@ -291,7 +317,7 @@ class Queue:
                 atomic(attempt / 'reference_manifest.json', task['reference_inputs'])
                 endpoint = self.protocol['relay_root'] + '/worker/seeact_matched_' + str(lane) + '_' + method + '/v1/chat/completions'
                 env = os.environ.copy()
-                env.update(self.protocol['environment'])
+                env.update(runtime_environment(self.protocol, self.runtime_repair))
                 env['CUDA_VISIBLE_DEVICES'] = ''
                 if self.runtime_repair_file:
                     env['CAUSALACT_RUNTIME_REPAIR_MANIFEST'] = str(self.runtime_repair_file)
