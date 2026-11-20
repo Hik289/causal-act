@@ -104,6 +104,75 @@ def mapped_vulkan_index(devices, gpu_uuid):
     return matches[0]
 
 
+def mesa_pci_selector(bus_id):
+    match = re.fullmatch(r'([0-9a-fA-F]{4}|[0-9a-fA-F]{8}):([0-9a-fA-F]{2}):([0-9a-fA-F]{2})\.([0-7])', bus_id)
+    if not match or int(match[1], 16) > 0xffff:
+        raise DeviceIdentityError('Invalid NVIDIA PCI bus identity')
+    return 'pci-{:04x}_{}_{}_{}'.format(int(match[1], 16), match[2].lower(), match[3].lower(), match[4])
+
+
+def isolated_simulator_environment(gpu_uuid, environment, pci_rows):
+    matches = [row.split(',')[1].strip() for row in pci_rows.splitlines()
+               if len(row.split(',')) == 2 and normalized_uuid(row.split(',')[0].strip()) == normalized_uuid(gpu_uuid)]
+    if len(matches) != 1:
+        raise DeviceIdentityError('NVIDIA PCI identity is missing or ambiguous')
+    isolated = dict(environment)
+    isolated.pop('NODEVICE_SELECT', None)
+    isolated.update(DRI_PRIME=mesa_pci_selector(matches[0]), MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE='1')
+    return isolated
+
+
+def isolated_vulkan_index(devices, gpu_uuid):
+    index = mapped_vulkan_index(devices, gpu_uuid)
+    if len(devices) != 1 or index != 0:
+        raise DeviceIdentityError('Vulkan did not expose exactly the selected physical GPU')
+    return index
+
+
+def device_namespace_command(command, nvidia_nodes, drm_nodes):
+    controls = {'/dev/nvidiactl', '/dev/nvidia-uvm', '/dev/nvidia-uvm-tools', '/dev/nvidia-modeset'}
+    numbered = [path for path in nvidia_nodes if re.fullmatch(r'/dev/nvidia[0-9]+', path)]
+    if (len(numbered) != 1 or '/dev/nvidiactl' not in nvidia_nodes
+        or any(path not in controls and path not in numbered for path in nvidia_nodes)
+        or not drm_nodes or any(not re.fullmatch(r'/dev/dri/(card[0-9]+|renderD[0-9]+)', path) for path in drm_nodes)):
+        raise DeviceIdentityError('Invalid single-GPU namespace device list')
+    prefix = ['bwrap', '--bind', '/', '/', '--proc', '/proc', '--dev', '/dev']
+    for path in sorted(set(nvidia_nodes + drm_nodes)):
+        prefix.extend(['--dev-bind', path, path])
+    return prefix + ['--'] + command
+
+
+def physical_gpu_namespace(gpu_uuid, simulator_env):
+    nvidia_nodes = subprocess.check_output(['nvidia-container-cli', 'list', '--device=' + gpu_uuid], text=True).splitlines()
+    pci = simulator_env['DRI_PRIME'][4:].replace('_', ':', 2).rsplit('_', 1)
+    pci = pci[0] + '.' + pci[1]
+    drm_nodes = ['/dev/dri/' + path.name for path in Path('/sys/class/drm').iterdir()
+                 if re.fullmatch(r'card[0-9]+|renderD[0-9]+', path.name)
+                 and (path / 'device').resolve().name.lower() == pci]
+    return device_namespace_command([], nvidia_nodes, drm_nodes), nvidia_nodes + drm_nodes
+
+
+def runtime_repair(protocol_file, repair_file):
+    if repair_file is None:
+        return None
+    repair_path = Path(repair_file).resolve()
+    value = json.loads(repair_path.read_text())
+    if (value.get('original_protocol_sha256') != sha(protocol_file)
+        or value.get('environment_repair_only') is not True
+        or value.get('GPU_isolation') != 'nvidia_device_namespace_and_mesa_pci'
+        or value.get('additional_route_attempts') != []):
+        raise RuntimeError('Native environment repair does not match the frozen protocol/budget')
+    if value['source_files'].get(str(Path(__file__).resolve())) != sha(__file__):
+        raise RuntimeError('Running native controller is not bound by the repair')
+    if any(path in value['source_files'] and value['source_files'][path] != digest
+           for path, digest in value['protected_files'].items()):
+        raise RuntimeError('Conflicting native repair artifact identities')
+    for path, digest in dict(value['source_files'], **value['protected_files']).items():
+        if sha(path) != digest:
+            raise RuntimeError('Native environment repair source/protected artifact changed: ' + path)
+    return dict(value, manifest_file=str(repair_path), manifest_sha256=sha(repair_path))
+
+
 def valid_record(raw_file, log_file, expected_route):
     """Retain scored task failures; exclude initialization, kernel and environment errors."""
     if not raw_file.exists() or not log_file.exists():
@@ -129,17 +198,21 @@ def valid_record(raw_file, log_file, expected_route):
 
 
 class Queue:
-    def __init__(self, protocol_file):
+    def __init__(self, protocol_file, runtime_repair_file=None):
         self.path = Path(protocol_file).resolve()
         self.root = self.path.parent
         self.protocol = json.loads(self.path.read_text())
         self.protocol_sha = sha(self.path)
+        self.repair = runtime_repair(self.path, runtime_repair_file)
         self.lock = (self.root / 'controller.lock').open('a')
         fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.stop = threading.Event()
         self.records = {}
         self.state = dict(controller_pid=os.getpid(), run_id=self.protocol['run_id'],
             benchmark_scores=0, workers_max=1, phase='verifying frozen sources and inputs')
+        if self.repair:
+            self.state.update(runtime_repair_id=self.repair['repair_id'],
+                runtime_repair_sha256=self.repair['manifest_sha256'])
         self.routes = ET.parse(self.protocol['routes_file']).getroot().findall('route')
         assert len(self.routes) == 100 and len({r.get('id') for r in self.routes}) == 100
         for name, digest in self.protocol['frozen_files'].items():
@@ -147,11 +220,16 @@ class Queue:
                 raise RuntimeError('Frozen native input/source changed: ' + name)
         self.fingerprints = {name: (Path(name).stat().st_size, Path(name).stat().st_mtime_ns)
                              for name in self.protocol['frozen_files']}
+        if self.repair:
+            self.fingerprints.update({name: (Path(name).stat().st_size, Path(name).stat().st_mtime_ns)
+                for name in dict(self.repair['source_files'], **self.repair['protected_files'])})
         self.load_scores()
 
     def verify(self):
         if sha(self.path) != self.protocol_sha:
             raise RuntimeError('Frozen route protocol changed')
+        if self.repair and sha(self.repair['manifest_file']) != self.repair['manifest_sha256']:
+            raise RuntimeError('Bound native environment repair changed')
         for name, stat in self.fingerprints.items():
             current = Path(name).stat()
             if (current.st_size, current.st_mtime_ns) != stat:
@@ -247,21 +325,33 @@ class Queue:
             if gpu is None:
                 return
             self.verify()
-            devices = json.loads(subprocess.check_output([self.protocol['vulkan_identity_tool']], text=True))
-            adapter = mapped_vulkan_index(devices, gpu['uuid'])
+            env = dict(os.environ, **spec['environment'], CUDA_VISIBLE_DEVICES=gpu['uuid'])
+            env.pop('SAVE_PATH', None)
+            simulator_env = env
+            simulator_prefix, simulator_nodes = [], []
+            if self.repair:
+                pci_rows = subprocess.check_output(['nvidia-smi', '--query-gpu=uuid,pci.bus_id',
+                    '--format=csv,noheader'], text=True)
+                simulator_env = isolated_simulator_environment(gpu['uuid'], env, pci_rows)
+                simulator_prefix, simulator_nodes = physical_gpu_namespace(gpu['uuid'], simulator_env)
+            devices = json.loads(subprocess.check_output(simulator_prefix + [self.protocol['vulkan_identity_tool']],
+                text=True, env=simulator_env))
+            adapter = isolated_vulkan_index(devices, gpu['uuid']) if self.repair else mapped_vulkan_index(devices, gpu['uuid'])
             out.mkdir()
             xml = ET.Element('routes');xml.append(ET.fromstring(ET.tostring(route)))
             ET.ElementTree(xml).write(out / 'route.xml', encoding='utf-8', xml_declaration=True)
-            env = dict(os.environ, **spec['environment'], CUDA_VISIBLE_DEVICES=gpu['uuid'])
-            env.pop('SAVE_PATH', None)
             atomic(out / 'runtime.json', dict(GPU=gpu, vulkan_adapter=adapter, vulkan_devices=devices,
-                native_config=spec['config'], checkpoint=spec['checkpoint'], protocol_sha256=self.protocol_sha))
+                native_config=spec['config'], checkpoint=spec['checkpoint'], protocol_sha256=self.protocol_sha,
+                simulator_environment={key: simulator_env[key] for key in
+                    ['DRI_PRIME', 'MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE'] if key in simulator_env},
+                simulator_device_nodes=simulator_nodes,
+                runtime_repair_sha256=self.repair['manifest_sha256'] if self.repair else None))
             simulator = actor = None
             try:
                 with (out / 'simulator.log').open('x') as log:
-                    simulator = subprocess.Popen([self.protocol['carla_launcher'], '-RenderOffScreen',
+                    simulator = subprocess.Popen(simulator_prefix + [self.protocol['carla_launcher'], '-RenderOffScreen',
                         '-graphicsadapter=' + str(adapter), '-carla-rpc-port=' + str(self.protocol['ports'][0]), '-nosound'],
-                        cwd=self.protocol['carla_root'], env=env, stdin=subprocess.DEVNULL, stdout=log,
+                        cwd=self.protocol['carla_root'], env=simulator_env, stdin=subprocess.DEVNULL, stdout=log,
                         stderr=subprocess.STDOUT, start_new_session=True)
                 self.state.update(phase='starting owned simulator', method=method, route=key,
                     simulator_pid=simulator.pid, GPU=gpu, attempt=str(out))
@@ -360,8 +450,9 @@ class Queue:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--protocol', required=True)
+    parser.add_argument('--runtime-repair')
     args = parser.parse_args()
-    queue = Queue(args.protocol)
+    queue = Queue(args.protocol, args.runtime_repair)
     try:
         queue.run()
     except Exception as error:
