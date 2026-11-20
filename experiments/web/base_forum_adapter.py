@@ -21,7 +21,8 @@ def accepted_evaluation(evaluations, bridge):
 
 
 def run_base_case(checkout, task_file, output, bridge, max_steps=10,
-                  original_origin=None, environment_origin=None):
+                  original_origin=None, environment_origin=None,
+                  evaluation_navigation_timeout_ms=None):
     output = Path(output)
     output.mkdir(exist_ok=False, parents=True)
     task_file = Path(task_file).resolve()
@@ -61,7 +62,10 @@ def run_base_case(checkout, task_file, output, bridge, max_steps=10,
         def capture(*call_args, **call_kwargs):
             bridge.stage = 'evaluation'
             try:
-                score = float(evaluate(*call_args, **call_kwargs))
+                from evaluation_navigation import evaluation_navigation
+                with evaluation_navigation(call_kwargs['page'], evaluation_navigation_timeout_ms,
+                                           output / 'evaluation_navigation.jsonl'):
+                    score = float(evaluate(*call_args, **call_kwargs))
             finally:
                 bridge.stage = 'planning'
             trajectory = call_kwargs['trajectory']

@@ -47,6 +47,9 @@ def main():
     try:
         repair_file = os.environ.get('CAUSALACT_RUNTIME_REPAIR_MANIFEST')
         repair = json.loads(Path(repair_file).read_text()) if repair_file else None
+        navigation_timeout = repair.get('evaluation_navigation_timeout_ms') if repair else None
+        if navigation_timeout is not None and (isinstance(navigation_timeout, bool) or navigation_timeout != 120000):
+            raise RuntimeError('Unexpected evaluation navigation repair budget')
         if repair:
             if repair['base_protocol_sha256'] != args.protocol_sha256 or Path(repair['source_dir']).resolve() != Path(__file__).resolve().parent:
                 raise RuntimeError('Runtime source repair/protocol mismatch')
@@ -74,18 +77,21 @@ def main():
         if args.method == 'seeact':
             result = asyncio.run(run_case(args.seeact_source, args.checkout, task_file,
                                           output / 'execution', bridge, max_steps=args.max_steps,
-                                          original_origin=args.original_origin, environment_origin=args.origin))
+                                          original_origin=args.original_origin, environment_origin=args.origin,
+                                          evaluation_navigation_timeout_ms=navigation_timeout))
         elif args.method == 'webvoyager':
             from webvoyager_adapter import run_webvoyager_case
             result = run_webvoyager_case(os.environ['CAUSALACT_WEBVOYAGER_SOURCE'], args.checkout,
                 task_file, output / 'execution', bridge, max_steps=args.max_steps,
                 browser_binary=os.environ['CAUSALACT_WEBVOYAGER_BROWSER'],
                 chromedriver=os.environ['CAUSALACT_WEBVOYAGER_DRIVER'],
-                original_origin=args.original_origin, environment_origin=args.origin)
+                original_origin=args.original_origin, environment_origin=args.origin,
+                evaluation_navigation_timeout_ms=navigation_timeout)
         else:
             result = run_base_case(args.checkout, task_file, output / 'execution', bridge,
                                    max_steps=args.max_steps, original_origin=args.original_origin,
-                                   environment_origin=args.origin)
+                                   environment_origin=args.origin,
+                                   evaluation_navigation_timeout_ms=navigation_timeout)
         if not math.isfinite(result['score']) or not 0 <= result['score'] <= 1:
             raise RuntimeError('Official evaluator returned an invalid score')
         if result.get('origin_guard_contexts', 0) < 1:
@@ -101,7 +107,8 @@ def main():
         if repair:
             result.update(runtime_repair_id=repair['repair_id'], runtime_source_commit=repair['source_commit'],
                           runtime_repair_sha256=hashlib.sha256(Path(repair_file).read_bytes()).hexdigest(),
-                          runtime_source_files=repair['source_files'])
+                          runtime_source_files=repair['source_files'],
+                          evaluation_navigation_timeout_ms=navigation_timeout)
         temporary = output / 'result.tmp'
         temporary.write_text(json.dumps(result, indent=2) + '\n')
         temporary.replace(output / 'result.json')

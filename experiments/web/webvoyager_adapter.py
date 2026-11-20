@@ -96,7 +96,8 @@ def native_actions(messages, parser):
 
 def run_webvoyager_case(source, checkout, task_file, output, bridge, *,
                        browser_binary, chromedriver, original_origin,
-                       environment_origin, max_steps=10):
+                       environment_origin, max_steps=10,
+                       evaluation_navigation_timeout_ms=None):
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     task_file = Path(task_file).resolve()
@@ -178,7 +179,8 @@ def run_webvoyager_case(source, checkout, task_file, output, bridge, *,
                     raise RuntimeError('Browser viewport differs from frozen paired protocol')
                 bridge.stage = 'evaluation'
                 try:
-                    score = official_score(checkout, task_file, port, target, answer, observation, bridge)
+                    score = official_score(checkout, task_file, port, target, answer, observation, bridge,
+                                           evaluation_navigation_timeout_ms, output / 'evaluation_navigation.jsonl')
                 finally:
                     bridge.stage = 'planning'
                 bridge.validate_completed_calls()

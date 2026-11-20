@@ -221,7 +221,8 @@ def free_loopback_port():
         return sock.getsockname()[1]
 
 
-def official_score(checkout, task_file, cdp_port, target_id, answer, observation, bridge):
+def official_score(checkout, task_file, cdp_port, target_id, answer, observation, bridge,
+                   evaluation_navigation_timeout_ms=None, navigation_audit=None):
     sys.path.insert(0, str(checkout))
     from playwright.sync_api import sync_playwright
     from browser_env.actions import create_stop_action
@@ -248,12 +249,15 @@ def official_score(checkout, task_file, cdp_port, target_id, answer, observation
         if page is None:
             raise RuntimeError('Cannot locate the native page for official evaluation')
         trajectory = [{'observation': observation, 'info': {}}, create_stop_action(answer)]
-        return float(evaluator_router(task_file, captioning_fn=captioning_fn)(
-            trajectory=trajectory, config_file=str(task_file), page=page))
+        from evaluation_navigation import evaluation_navigation
+        with evaluation_navigation(page, evaluation_navigation_timeout_ms, navigation_audit):
+            return float(evaluator_router(task_file, captioning_fn=captioning_fn)(
+                trajectory=trajectory, config_file=str(task_file), page=page))
 
 
 async def run_case(source, checkout, task_file, output, bridge, max_steps=10,
-                   original_origin=None, environment_origin=None):
+                   original_origin=None, environment_origin=None,
+                   evaluation_navigation_timeout_ms=None):
     output = Path(output)
     output.mkdir(exist_ok=False, parents=True)
     task_file = Path(task_file)
@@ -325,7 +329,8 @@ async def run_case(source, checkout, task_file, output, bridge, max_steps=10,
         observation = {'text': await agent.page.inner_text('body')}
         bridge.stage = 'evaluation'
         try:
-            score = await asyncio.to_thread(official_score, checkout, task_file, port, target, answer, observation, bridge)
+            score = await asyncio.to_thread(official_score, checkout, task_file, port, target, answer, observation, bridge,
+                                           evaluation_navigation_timeout_ms, output / 'evaluation_navigation.jsonl')
         finally:
             bridge.stage = 'planning'
         bridge.validate_completed_calls()

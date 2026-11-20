@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a frozen, evaluation-only navigation repair for
+slow Forum responses. The official evaluator can wait up to 120 seconds for
+the same page load; native actions, model calls, score definitions and existing
+valid scores retain their settings. Base, SeeAct and WebVoyager share the
+repair. Errors remain invalid attempts. See the
+[repair protocol](experiments/web/README_evaluation_navigation.md).
+
 **November 20, 2026** — Added offline UI-TARS preparation that reads the deployed
 thumbnail rule, derives geometry from the actual processor, and checks the
 pinned native parser against that frame. It records local checkpoint file
