@@ -16,7 +16,7 @@ from base_forum_adapter import run_base_case
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--method', choices=['base', 'seeact', 'webvoyager'], required=True)
+    parser.add_argument('--method', choices=['base', 'seeact', 'webvoyager', 'uitars'], required=True)
     parser.add_argument('--task-file', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--checkout', required=True)
@@ -59,7 +59,7 @@ def main():
         task = json.loads(task_file.read_text())
         if task.get('sites') != ['reddit']:
             raise RuntimeError('This isolated factory accepts Forum-only tasks')
-        if args.method in ('seeact', 'webvoyager') and task.get('storage_state'):
+        if args.method in ('seeact', 'webvoyager', 'uitars') and task.get('storage_state'):
             auth = output / 'auth'
             auth.mkdir(mode=0o700)
             with (output / 'login.log').open('w') as log:
@@ -87,6 +87,13 @@ def main():
                 chromedriver=os.environ['CAUSALACT_WEBVOYAGER_DRIVER'],
                 original_origin=args.original_origin, environment_origin=args.origin,
                 evaluation_navigation_timeout_ms=navigation_timeout)
+        elif args.method == 'uitars':
+            from uitars_adapter import run_uitars_case
+            result = run_uitars_case(args.checkout, task_file, output / 'execution', bridge,
+                endpoint=os.environ['CAUSALACT_UITARS_ENDPOINT'],
+                frame_contract=os.environ['CAUSALACT_UITARS_FRAME_CONTRACT'],
+                original_origin=args.original_origin, environment_origin=args.origin,
+                max_steps=args.max_steps, evaluation_navigation_timeout_ms=120000)
         else:
             result = run_base_case(args.checkout, task_file, output / 'execution', bridge,
                                    max_steps=args.max_steps, original_origin=args.original_origin,
@@ -99,7 +106,8 @@ def main():
         if result.get('origin_guard_errors'):
             raise RuntimeError('Independent environment origin routing failed')
         references = json.loads(Path(args.reference_manifest).read_text())
-        verify_reference_delivery(bridge.calls, [x['transport_sha256'] for x in references])
+        if args.method != 'uitars':
+            verify_reference_delivery(bridge.calls, [x['transport_sha256'] for x in references])
         result.update(run_id=args.run_id, method_key=args.method,
                       original_task_sha256=args.original_task_sha256,
                       protocol_sha256=args.protocol_sha256,

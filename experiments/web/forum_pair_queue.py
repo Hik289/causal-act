@@ -40,7 +40,7 @@ def valid_score(path, task_id, method, run_id, original_sha, protocol_sha):
         return None
     score = json.loads(path.read_text())
     if (score.get('valid') is not True or score.get('fixture') is not False
-        or score.get('model') != 'anthropic.claude-opus-5-5'
+        or score.get('model') != ('ui-tars-1.5-7b' if method == 'uitars' else 'anthropic.claude-opus-5-5')
         or score.get('task_id') != task_id or score.get('method_key') != method
         or score.get('run_id') != run_id or score.get('original_task_sha256') != original_sha
         or score.get('protocol_sha256') != protocol_sha
@@ -56,7 +56,7 @@ class Queue:
         self.root = self.protocol_file.parent
         self.protocol = json.loads(self.protocol_file.read_text())
         self.methods = self.protocol.get('methods', ['base', 'seeact'])
-        if self.methods not in (['base', 'seeact'], ['webvoyager']):
+        if self.methods not in (['base', 'seeact'], ['webvoyager'], ['uitars']):
             raise RuntimeError('Undeclared native method set')
         self.protocol_hash = hashlib.sha256(self.protocol_file.read_bytes()).hexdigest()
         self.lock = (self.root / 'controller.lock').open('a')
@@ -148,7 +148,7 @@ class Queue:
         with self.mutex:
             self.verify_frozen()
             methods = {m: [x for x in self.scores.values() if x['method_key'] == m] for m in self.methods}
-            controls = self.reference_controls() if self.methods == ['webvoyager'] else None
+            controls = self.reference_controls() if self.protocol.get('reference_control') else None
             paired = [t['task_id'] for t in self.protocol['tasks'] if all(str(t['task_id']) + '/' + m in self.scores for m in methods)]
             if controls is not None:
                 paired = [t for t in paired if t in controls]
@@ -159,7 +159,7 @@ class Queue:
                                        'score_sum': sum(x['score'] for x in values)} for m, values in methods.items()},
                           paired={m: {'score_sum': sum(self.scores[str(t) + '/' + m]['score'] for t in paired),
                                       'denominator': len(paired)} for m in methods},
-                          comparison='new matched initialization; historical Base/CausalAct scores remain separate')
+                          comparison=self.protocol.get('comparison', 'new matched initialization; historical Base/CausalAct scores remain separate'))
             if controls is not None:
                 report['paired']['base'] = {'score_sum': sum(controls[t]['score'] for t in paired), 'denominator': len(paired)}
                 report['referenced_control_scores'] = len(controls)
@@ -180,9 +180,13 @@ class Queue:
         if hashlib.sha256(path.read_bytes()).hexdigest() != info['protocol_sha256']:
             raise RuntimeError('Referenced control protocol changed')
         protocol = json.loads(path.read_text())
-        for key in ['model', 'seed_image', 'max_steps', 'viewport', 'original_origin']:
+        for key in ['seed_image', 'max_steps', 'viewport', 'original_origin']:
             if self.protocol[key] != protocol[key]:
                 raise RuntimeError('Referenced control setting mismatch: ' + key)
+        if self.methods != ['uitars'] and self.protocol['model'] != protocol['model']:
+            raise RuntimeError('Referenced control model mismatch')
+        if self.methods == ['uitars'] and self.protocol.get('control_model_comparison') != 'different native planning models; no causal-effect claim':
+            raise RuntimeError('UI-TARS comparison must identify the different planning model')
         original_tasks = {t['task_id']: t for t in protocol['tasks']}
         controls = {}
         for task in self.protocol['tasks']:

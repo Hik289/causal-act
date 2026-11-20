@@ -119,6 +119,57 @@ class MatchedQueueTests(unittest.TestCase):
         self.assertEqual(changed['eval']['reference_url'], 'http://new/f/b')
         self.assertEqual(changed['image'], task['image'])
 
+    def test_native_ui_control_explicitly_records_model_difference_and_keeps_base_zero(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protocol, digest = self.make_protocol(root)
+            base = json.loads(protocol.read_text())
+            base.update(seed_image='seed', max_steps=10, viewport=[1280,720],
+                        original_origin='http://original', model='anthropic.claude-opus-5-5')
+            protocol.write_text(json.dumps(base))
+            sha = hashlib.sha256(protocol.read_bytes()).hexdigest()
+            raw = self.make_score(root, digest, sha)
+            before = raw.read_bytes()
+            native_root = root / 'native'
+            native_root.mkdir()
+            ui = dict(base, methods=['uitars'], workers=1, model='ui-tars-1.5-7b', run_id='native_ui',
+                reference_control={'protocol_file':str(protocol),'protocol_sha256':sha},
+                control_model_comparison='different native planning models; no causal-effect claim')
+            ui_path = native_root / 'protocol.json'
+            ui_path.write_text(json.dumps(ui))
+            queue = Queue(ui_path)
+            try:
+                self.assertEqual(queue.reference_controls()[3]['score'], 0.)
+                self.assertEqual(raw.read_bytes(), before)
+            finally:
+                queue.lock.close()
+            ui.pop('control_model_comparison')
+            ui_path.write_text(json.dumps(ui))
+            queue = object.__new__(Queue)
+            try:
+                with self.assertRaisesRegex(RuntimeError, 'different planning model'):
+                    queue.__init__(ui_path)
+            finally:
+                queue.lock.close()
+
+    def test_predecessor_gate_accepts_valid_zero_but_rejects_fixture(self):
+        from uitars_deferred_queue import completed_method
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protocol, digest = self.make_protocol(root)
+            sha = hashlib.sha256(protocol.read_bytes()).hexdigest()
+            raw = self.make_score(root, digest, sha, method_key='webvoyager')
+            registry = root / 'score_registry.json'
+            registry.write_text('{}')
+            self.assertFalse(completed_method(protocol, 'webvoyager', sha))
+            def register():
+                registry.write_text(json.dumps({'3/webvoyager':{'raw_file':str(raw),
+                    'raw_sha256':hashlib.sha256(raw.read_bytes()).hexdigest()}}))
+            register()
+            self.assertTrue(completed_method(protocol, 'webvoyager', sha))
+            value = json.loads(raw.read_text());value['fixture']=True;raw.write_text(json.dumps(value));register()
+            with self.assertRaises(RuntimeError):completed_method(protocol, 'webvoyager', sha)
+
 
 if __name__ == '__main__':
     unittest.main()

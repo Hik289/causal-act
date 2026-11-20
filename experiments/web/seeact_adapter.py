@@ -221,10 +221,9 @@ def free_loopback_port():
         return sock.getsockname()[1]
 
 
-def official_score(checkout, task_file, cdp_port, target_id, answer, observation, bridge,
-                   evaluation_navigation_timeout_ms=None, navigation_audit=None):
+def evaluate_live_page(checkout, task_file, page, answer, observation, bridge,
+                       evaluation_navigation_timeout_ms=None, navigation_audit=None):
     sys.path.insert(0, str(checkout))
-    from playwright.sync_api import sync_playwright
     from browser_env.actions import create_stop_action
     from evaluation_harness.evaluators import evaluator_router
     from llms.providers import openai_utils
@@ -236,6 +235,16 @@ def official_score(checkout, task_file, cdp_port, target_id, answer, observation
         import torch
         torch.set_num_threads(2)
         captioning_fn = get_captioning_fn('cpu', torch.float32, 'Salesforce/blip2-flan-t5-xl')
+    trajectory = [{'observation': observation, 'info': {}}, create_stop_action(answer)]
+    from evaluation_navigation import evaluation_navigation
+    with evaluation_navigation(page, evaluation_navigation_timeout_ms, navigation_audit):
+        return float(evaluator_router(task_file, captioning_fn=captioning_fn)(
+            trajectory=trajectory, config_file=str(task_file), page=page))
+
+
+def official_score(checkout, task_file, cdp_port, target_id, answer, observation, bridge,
+                   evaluation_navigation_timeout_ms=None, navigation_audit=None):
+    from playwright.sync_api import sync_playwright
     with sync_playwright() as playwright:
         browser = playwright.chromium.connect_over_cdp('http://127.0.0.1:' + str(cdp_port))
         page = None
@@ -248,11 +257,8 @@ def official_score(checkout, task_file, cdp_port, target_id, answer, observation
                     page = candidate
         if page is None:
             raise RuntimeError('Cannot locate the native page for official evaluation')
-        trajectory = [{'observation': observation, 'info': {}}, create_stop_action(answer)]
-        from evaluation_navigation import evaluation_navigation
-        with evaluation_navigation(page, evaluation_navigation_timeout_ms, navigation_audit):
-            return float(evaluator_router(task_file, captioning_fn=captioning_fn)(
-                trajectory=trajectory, config_file=str(task_file), page=page))
+        return evaluate_live_page(checkout, task_file, page, answer, observation, bridge,
+                                  evaluation_navigation_timeout_ms, navigation_audit)
 
 
 async def run_case(source, checkout, task_file, output, bridge, max_steps=10,

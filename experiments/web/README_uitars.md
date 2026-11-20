@@ -1,9 +1,10 @@
-# UI-TARS offline preparation
+# UI-TARS adapted Forum evaluation
 
-This prepares a future external Forum configuration. It is not a complete
-UI-TARS agent or an end-to-end benchmark result. Real model inference, task
-reference delivery, browser actions beyond the synthetic fixture, official
-evaluation and queue integration still require validation before scoring.
+The native prompt and parser run through an isolated Chromium adapter and the
+unchanged official Forum evaluator. A frozen 170-task queue is deferred until
+WebVoyager finishes its own scores and releases its evaluation slot. Scripted
+fixtures are preparation, excluded from every benchmark denominator. Actual
+UI-TARS transport must pass before formal scoring starts.
 
 The native source is [ByteDance UI-TARS](https://github.com/bytedance/UI-TARS),
 pinned at `582f3a7ea5d285ee8ed9e2e84048d1ab01453c49`. Its unmodified
@@ -28,7 +29,39 @@ A second scripted prediction outside the frame must remain outside after
 mapping; coordinates are not clamped. The fixture makes zero model requests,
 creates no benchmark score and is excluded from every experimental denominator.
 
-The three active Forum evaluation workers retain their slots. Preparation
-does not start a fourth model-evaluation worker. A real inference fixture and
-formal UI-TARS queue require an available slot and a completed native adapter;
-offline preparation must not be reported as completed external evaluation.
+`uitars_adapter.py` uses the pinned `COMPUTER_USE_DOUBAO` prompt and native
+parser. It keeps all task reference images and three screenshot-history steps,
+with the current screen last. Every request records image hashes, the actual
+served model, response and usage. The deployed service puts image placeholders
+before the text within each message, thumbnails every image, and uses fp16,
+deterministic generation and at most 512 new tokens. That service is reused
+without restarting or changing it.
+
+Actions execute through an explicit browser whitelist. Pointer coordinates
+remain unclamped; Unicode typing uses the isolated browser clipboard; Ctrl+L
+operates an HTTP address buffer. Native vertical five-tick scrolls map to 600
+pixels, horizontal scrolling retains the pinned converter's no-op, drag takes
+one second, and wait takes five seconds. A common 2.5-second observation wait,
+1280×720 viewport and ten-decision budget are frozen adaptations. Model action
+syntax failures stop the agent and receive official evaluation of the retained
+state. Transport, environment or model-identity failures remain invalid attempts.
+
+`uitars_adapter_fixture.py` exercises references across the truncated history,
+address navigation, coordinate clicks, Unicode submit and the actual official
+DOM evaluator. Its positive and negative scripted cases receive 1 and 0;
+both have `fixture=True`, zero actual model requests and zero benchmark scores.
+
+`uitars_deferred_queue.py` checks predecessor raw-score identities and hashes,
+actual processes, disk and host memory before reserving the released third
+Forum lane. It permits three bounded transport attempts with the existing
+backoff, never retries to select a better semantic response, and takes a
+singleton lock. Formal cases use fresh owned clean-seed environments and the
+same tasks and references as Base/SeeAct. Base scores are referenced without
+rerunning or duplicating them. UI-TARS planning and Claude evaluation calls
+have separate provenance: comparison with Claude Base uses different native
+planning models and does not identify a causal intervention effect.
+
+Existing Base/SeeAct/WebVoyager runtime sources, valid positive and negative
+scores, and the E8 single-image and S2 frame protocols remain separately
+identified. Completion of these fixtures does not complete the external
+baseline or the full 910-task benchmark.

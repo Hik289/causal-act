@@ -16,6 +16,14 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added the adapted UI-TARS Forum browser runner,
+per-request reference-image audits, official live-page evaluation and a
+singleton queue that waits for WebVoyager's evaluation slot. Scripted real
+browser fixtures verify positive and negative DOM scoring without model
+requests. UI-TARS planning and Claude evaluation provenance are separate;
+fixtures and preparation are excluded from benchmark results. See the
+[evaluation protocol](experiments/web/README_uitars.md).
+
 **November 20, 2026** — Added a source-checked adapter for native driving
 agents whose logging-only overhead camera fails the SENSORS rules. It removes
 that camera and its unused tick output, retains native model inputs and
