@@ -16,6 +16,12 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a separate ThinkTwice recording-camera adapter
+that preserves its four RGB cameras, LiDAR history and native control methods.
+It fixes setup with recording disabled and rejects unexpected debug dependencies.
+Offline checks are separate from pending native GPU, sensor-validator and route
+evaluation. See the [adapter protocol](experiments/driving/README_thinktwice_no_debug.md).
+
 **November 20, 2026** — Added a bound native simulator device-isolation repair.
 It matches the selected GPU by UUID and PCI bus, requires single-device Vulkan
 enumeration and retains the strict post-boot identity check. Original protocols,
