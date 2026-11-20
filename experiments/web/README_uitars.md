@@ -23,6 +23,14 @@ side of640. A1280×720 screenshot becomes640×360, then the deployed processor's
 geometry comes from source and processor metadata, without task targets or
 benchmark scores.
 
+The frozen local UI client sends canonical inline PNG bytes. Claude controls
+use the shared relay's JPEG encoding for images above 3,700,000 bytes. The
+inherited protocol field describing that relay applies to the Claude controls;
+it does not describe local UI transport. Source-reference hashes must match
+the common canonical files, while each model's actual encoded-image hashes
+are audited separately. Native image encoding and processing differences
+remain part of the reported comparison.
+
 `uitars_contract.py` runs with `CUDA_VISIBLE_DEVICES` empty. It refuses a
 thumbnail cap that disagrees with the service source, checks native-parser and
 processor geometry, records source/configuration hashes and streams hashes of
