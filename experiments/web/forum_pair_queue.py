@@ -55,6 +55,9 @@ class Queue:
         self.protocol_file = Path(protocol_file).resolve()
         self.root = self.protocol_file.parent
         self.protocol = json.loads(self.protocol_file.read_text())
+        self.methods = self.protocol.get('methods', ['base', 'seeact'])
+        if self.methods not in (['base', 'seeact'], ['webvoyager']):
+            raise RuntimeError('Undeclared native method set')
         self.protocol_hash = hashlib.sha256(self.protocol_file.read_bytes()).hexdigest()
         self.lock = (self.root / 'controller.lock').open('a')
         fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -81,7 +84,7 @@ class Queue:
             raise RuntimeError('This queue reserves at most two Forum workers')
         self.verify_frozen()
         for task in self.protocol['tasks']:
-            for method in ['base', 'seeact']:
+            for method in self.methods:
                 self.find_score(task, method)
         if self.runtime_repair:
             repair_id = self.runtime_repair['repair_id']
@@ -95,7 +98,7 @@ class Queue:
                     raise RuntimeError('Existing repaired-attempt budget belongs to another manifest')
             else:
                 allowed = self.runtime_repair.get('one_post_repair_attempt', [])
-                valid_keys = {str(t['task_id']) + '/' + m for t in self.protocol['tasks'] for m in ['base', 'seeact']}
+                valid_keys = {str(t['task_id']) + '/' + m for t in self.protocol['tasks'] for m in self.methods}
                 if not set(allowed).issubset(valid_keys):
                     raise RuntimeError('Repair attempt identity is outside the task manifest')
                 limits = {'runtime_repair_sha256': self.runtime_repair_hash, 'limits': {
@@ -144,16 +147,24 @@ class Queue:
     def save(self):
         with self.mutex:
             self.verify_frozen()
-            methods = {m: [x for x in self.scores.values() if x['method_key'] == m] for m in ['base', 'seeact']}
+            methods = {m: [x for x in self.scores.values() if x['method_key'] == m] for m in self.methods}
+            controls = self.reference_controls() if self.methods == ['webvoyager'] else None
             paired = [t['task_id'] for t in self.protocol['tasks'] if all(str(t['task_id']) + '/' + m in self.scores for m in methods)]
+            if controls is not None:
+                paired = [t for t in paired if t in controls]
             report = dict(run_id=self.protocol['run_id'], planned_pairs=len(self.protocol['tasks']),
                           valid_pairs=len(paired), complete=len(paired) == len(self.protocol['tasks']),
-                          valid_method_scores=len(self.scores), planned_method_scores=2 * len(self.protocol['tasks']),
+                          valid_method_scores=len(self.scores), planned_method_scores=len(self.methods) * len(self.protocol['tasks']),
                           methods={m: {'valid': len(values), 'fully_passed': sum(x['score'] == 1 for x in values),
                                        'score_sum': sum(x['score'] for x in values)} for m, values in methods.items()},
                           paired={m: {'score_sum': sum(self.scores[str(t) + '/' + m]['score'] for t in paired),
                                       'denominator': len(paired)} for m in methods},
                           comparison='new matched initialization; historical Base/CausalAct scores remain separate')
+            if controls is not None:
+                report['paired']['base'] = {'score_sum': sum(controls[t]['score'] for t in paired), 'denominator': len(paired)}
+                report['referenced_control_scores'] = len(controls)
+                report['control_protocol_sha256'] = self.protocol['reference_control']['protocol_sha256']
+                atomic(self.root / 'referenced_control_scores.json', controls)
             report['runtime_repair_id'] = self.runtime_repair['repair_id'] if self.runtime_repair else None
             atomic(self.root / 'protected_scores.json', self.protected)
             atomic(self.root / 'score_registry.json', self.scores)
@@ -161,6 +172,34 @@ class Queue:
             atomic(self.root / 'status.json', dict(report, controller_pid=os.getpid(),
                 workers=self.states, updated_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 status='complete' if report['complete'] else ('needs repair; retries exhausted' if self.finished else 'running or waiting; see actual worker states')))
+
+    def reference_controls(self):
+        """Read already-scored controls, never run or replace them in this queue."""
+        info = self.protocol['reference_control']
+        path = Path(info['protocol_file'])
+        if hashlib.sha256(path.read_bytes()).hexdigest() != info['protocol_sha256']:
+            raise RuntimeError('Referenced control protocol changed')
+        protocol = json.loads(path.read_text())
+        for key in ['model', 'seed_image', 'max_steps', 'viewport', 'original_origin']:
+            if self.protocol[key] != protocol[key]:
+                raise RuntimeError('Referenced control setting mismatch: ' + key)
+        original_tasks = {t['task_id']: t for t in protocol['tasks']}
+        controls = {}
+        for task in self.protocol['tasks']:
+            if original_tasks.get(task['task_id']) != task:
+                raise RuntimeError('Referenced control task or inputs differ')
+            for raw in sorted((path.parent / 'cases' / str(task['task_id']) / 'base').glob('attempt*/result.json')):
+                value = valid_score(raw, task['task_id'], 'base', protocol['run_id'], task['sha256'], info['protocol_sha256'])
+                if value:
+                    if [x['source_sha256'] for x in value['reference_inputs']] != [x['sha256'] for x in task['reference_inputs']]:
+                        raise RuntimeError('Referenced control reference images differ')
+                    digest = hashlib.sha256(raw.read_bytes()).hexdigest()
+                    self.protected[str(raw)] = self.protected.get(str(raw), digest)
+                    if self.protected[str(raw)] != digest:
+                        raise RuntimeError('Referenced valid control changed')
+                    controls[task['task_id']] = dict(score=value['score'], raw_file=str(raw), raw_sha256=digest)
+                    break
+        return controls
 
     def set_state(self, lane, value):
         with self.mutex:
@@ -306,7 +345,7 @@ class Queue:
             if index % self.protocol['workers'] != lane or self.stop.is_set():
                 continue
             # Fixed order counterbalance, chosen before any new scores.
-            for method in (['base', 'seeact'] if index % 2 == 0 else ['seeact', 'base']):
+            for method in (self.methods if index % 2 == 0 else list(reversed(self.methods))):
                 self.case(task, method, lane)
         self.set_state(lane, {'status': 'finished shard; inspect missing/invalid denominators'})
         self.save()
@@ -321,6 +360,12 @@ class Queue:
                 except Exception:
                     self.stop.set()
                     raise
+        # An external native method can finish before its separately owned
+        # control queue. Refresh that paired intersection without re-running it.
+        if self.protocol.get('reference_control') and len(self.scores) == len(self.protocol['tasks']):
+            while len(self.reference_controls()) < len(self.protocol['tasks']) and not self.stop.wait(30):
+                self.set_state('control', {'status': 'waiting for already-owned Base scores; no duplicate submission'})
+                self.save()
         self.finished = True
         self.save()
 

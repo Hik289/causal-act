@@ -16,7 +16,7 @@ from base_forum_adapter import run_base_case
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--method', choices=['base', 'seeact'], required=True)
+    parser.add_argument('--method', choices=['base', 'seeact', 'webvoyager'], required=True)
     parser.add_argument('--task-file', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--checkout', required=True)
@@ -56,7 +56,7 @@ def main():
         task = json.loads(task_file.read_text())
         if task.get('sites') != ['reddit']:
             raise RuntimeError('This isolated factory accepts Forum-only tasks')
-        if args.method == 'seeact' and task.get('storage_state'):
+        if args.method in ('seeact', 'webvoyager') and task.get('storage_state'):
             auth = output / 'auth'
             auth.mkdir(mode=0o700)
             with (output / 'login.log').open('w') as log:
@@ -75,6 +75,13 @@ def main():
             result = asyncio.run(run_case(args.seeact_source, args.checkout, task_file,
                                           output / 'execution', bridge, max_steps=args.max_steps,
                                           original_origin=args.original_origin, environment_origin=args.origin))
+        elif args.method == 'webvoyager':
+            from webvoyager_adapter import run_webvoyager_case
+            result = run_webvoyager_case(os.environ['CAUSALACT_WEBVOYAGER_SOURCE'], args.checkout,
+                task_file, output / 'execution', bridge, max_steps=args.max_steps,
+                browser_binary=os.environ['CAUSALACT_WEBVOYAGER_BROWSER'],
+                chromedriver=os.environ['CAUSALACT_WEBVOYAGER_DRIVER'],
+                original_origin=args.original_origin, environment_origin=args.origin)
         else:
             result = run_base_case(args.checkout, task_file, output / 'execution', bridge,
                                    max_steps=args.max_steps, original_origin=args.original_origin,

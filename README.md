@@ -16,6 +16,16 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a native Selenium WebVoyager adapter with the
+same audited Claude gateway, canonical reference inputs, isolated Forum seed,
+Chromium viewport, and live official evaluator as the new Base controls.
+A separate one-worker queue reads and hash-protects existing valid Base scores
+without submitting them again. It reports the valid intersection separately,
+keeps valid negative scores, and rejects incomplete inference or observation
+failures. Thirty-six checks and scripted/real-Claude browser fixtures cover the
+interfaces; fixtures are excluded from benchmark results. See the
+[WebVoyager protocol](experiments/web/README_webvoyager.md).
+
 **November 19, 2026** — Added native SeeAct and existing Base adapters using
 audited Claude requests and the official live-page evaluator. A resumable
 170-task Forum queue freezes identical reference images and creates a fresh,
