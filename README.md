@@ -16,6 +16,15 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added offline UI-TARS preparation that reads the deployed
+thumbnail rule, derives geometry from the actual processor, and checks the
+pinned native parser against that frame. It records local checkpoint file
+identities without loading a model or changing the service. Four new checks and
+a real-browser scripted fixture verify pixel mapping and preserve out-of-frame
+predictions. No model requests or benchmark scores are produced; native Forum
+inference and the complete agent adapter remain pending. See the
+[preparation protocol](experiments/web/README_uitars.md).
+
 **November 20, 2026** — Added a native Selenium WebVoyager adapter with the
 same audited Claude gateway, canonical reference inputs, isolated Forum seed,
 Chromium viewport, and live official evaluator as the new Base controls.
