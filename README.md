@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a source-checked adapter for native driving
+agents whose logging-only overhead camera fails the SENSORS rules. It removes
+that camera and its unused tick output, retains native model inputs and
+control code, and rejects enabled logging or unexpected BEV consumption.
+Original sources and checkpoints remain separate. See the
+[adapter protocol](experiments/driving/README_native_debug_bev.md).
+
 **November 20, 2026** — Added a frozen, evaluation-only navigation repair for
 slow Forum responses. The official evaluator can wait up to 120 seconds for
 the same page load; native actions, model calls, score definitions and existing
