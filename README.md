@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 20, 2026** — Added a resumable native VAD/UniAD/DriveTransformer
+100-route queue that waits for GPU setup and unoccupied resources. Vulkan
+adapter indices are matched by physical UUID and checked against the actual
+Unreal process before policy inference. Original valid failures are protected;
+environment errors retain their logs and bounded retries. See the
+[native route protocol](experiments/driving/README_native_route_queue.md).
+
 **November 20, 2026** — Added the adapted UI-TARS Forum browser runner,
 per-request reference-image audits, official live-page evaluation and a
 singleton queue that waits for WebVoyager's evaluation slot. Scripted real
