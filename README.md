@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 21, 2026** — Added private, selected-worker upstream diagnostics and
+explicit provider-refusal handling. Refusals supply no executable action and are
+marked non-retryable; ordinary successful text stays unchanged. Twelve offline
+checks cover evidence preservation and response classification. One separately
+registered synthetic diagnostic returned a refusal and produced no benchmark
+or transfer result. See the [diagnostic notes](experiments/services/README_bedrock_diagnostics.md).
+
 **November 21, 2026** — Added frozen app-snapshot restoration before native
 Android task initialization, with native teardown and preserved partial-failure
 records. Skipped snapshot-restoration warnings stop initialization before model

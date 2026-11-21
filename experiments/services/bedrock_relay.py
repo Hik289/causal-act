@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from bedrock_metadata import record_upstream
+from bedrock_response import completion_text
 import hmac
 import json
 import os
@@ -69,7 +71,7 @@ def request_body(payload):
         body["system"] = system
     return body
 
-def audit(worker, status, usage=None, error=None):
+def audit(worker, status, usage=None, error=None, stop_reason=None):
     record = {"timestamp_utc": datetime.now(timezone.utc).isoformat(),
               "worker": worker, "model": MODEL, "status": status}
     if usage:
@@ -77,6 +79,8 @@ def audit(worker, status, usage=None, error=None):
                       output_tokens=usage.get("output_tokens"))
     if error:
         record["error_type"] = error
+    if stop_reason is not None:
+        record["stop_reason"] = stop_reason
     with audit_lock, (root / "requests.jsonl").open("a") as handle:
         handle.write(json.dumps(record) + "\n")
 
@@ -95,8 +99,13 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
-    def error(self, status, code):
-        self.send_json(status, {"error": {"message": code, "type": code, "code": code}})
+    def error(self, status, code, stop_reason=None):
+        error = {"message": code, "type": code, "code": code}
+        if stop_reason is not None:
+            error["stop_reason"] = stop_reason
+        if code == "provider_refusal":
+            error["retryable"] = False
+        self.send_json(status, {"error": error})
 
     def do_POST(self):
         match = request_path.fullmatch(self.path)
@@ -142,12 +151,13 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             slots.release()
 
-        output = "".join(block["text"] for block in result.get("content", [])
-                         if block.get("type") == "text")
+        record_upstream(worker=worker, model=MODEL, request_bytes=request.data, response=result)
+        output, error = completion_text(result)
         usage = result.get("usage", {})
-        audit(worker, 200 if output else 502, usage, error=None if output else "empty_completion")
-        if not output:
-            self.error(502, "empty_completion")
+        status = 422 if error == "provider_refusal" else (502 if error else 200)
+        audit(worker, status, usage, error=error, stop_reason=result.get("stop_reason"))
+        if error:
+            self.error(status, error, stop_reason=result.get("stop_reason"))
             return
         prompt_tokens = usage.get("input_tokens", 0)
         completion_tokens = usage.get("output_tokens", 0)
