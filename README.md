@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 21, 2026** — Added a bounded development Base attempt using the
+original AndroidWorld episode runner and success evaluator. Frozen source/task
+bindings and provider readiness are checked before execution. Valid zeros are
+retained; transport, execution and cleanup errors remain invalid. Fourteen new
+offline checks produce no benchmark or transfer results. See the
+[controlled-attempt notes](experiments/mobile/README_claude_m3a.md#controlled-development-base-attempt).
+
 **November 21, 2026** — Added private, selected-worker upstream diagnostics and
 explicit provider-refusal handling. Refusals supply no executable action and are
 marked non-retryable; ordinary successful text stays unchanged. Twelve offline

@@ -128,3 +128,38 @@ unchanged. Formal E7 still needs the controlled agent/Refiner runner,
 training/validation data and checkpoint selection, and a frozen held-out
 protocol. Preparation validity is separate from task success and provider
 availability.
+
+## Controlled development Base attempt
+
+`native_attempt.py` connects the existing frozen-task lifecycle to the original
+`android_world.episode_runner.run_episode` and native success evaluator. It
+implements one development Base attempt, without an emulator launcher, retry,
+Refiner method, training policy or formal-transfer runner. Its fourteen new
+offline checks are separate from the earlier 21 mobile checks.
+
+A separate preflight checked the actual imported native source bytes and Base
+binding without execution. Four new scripted cases exercised the unchanged
+native episode runner: valid zero, budget exhaustion, provider exception and
+cleanup exception. They initialized no real task, launched no emulator and
+made no model request. Their scripted scores are not AndroidWorld results.
+
+Before initialization, a SHA-bound private protocol must match the task family,
+params and seed, apps, goal, snapshot archive, actual imported native sources,
+native step budget/start-screen setting and admitted provider route/retry policy.
+The supplied agent must be the unchanged native M3A with the explicit Claude
+wrapper and original pauses. Provider readiness must be explicitly true under
+its bound evidence hash; current provider-pending evidence prevents execution
+before native initialization or model requests.
+
+An attempt directory is created once and cannot be overwritten. The original
+episode data is serialized as private write-only evidence. The scorer runs once
+after an episode, including budget exhaustion. Valid zeros are retained; a
+model, device, scorer or cleanup exception propagates and leaves `score=null`.
+A score computed before failed cleanup remains in the evidence but is not
+committed as valid. Even successful development attempts contribute zero formal
+benchmark or transfer scores. Native lifecycle cleanup remains responsible for
+preserving an original exception when teardown also fails.
+
+This entry point does not establish provider recovery. A controlled Refiner
+integration, training/validation data and checkpoint selection, and frozen
+held-out applications/tasks/seeds are still required for E7.
