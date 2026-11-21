@@ -16,6 +16,14 @@
 
 ## Recent Commit
 
+**November 21, 2026** — Added an explicit Claude inference interface for native
+AndroidWorld M3A with unchanged native JPEG encoding and action parsing. Bounded
+provider failures propagate through action selection and summarization; model
+syntax errors remain with native scoring. Private request audits and ten offline
+checks cover transport identity, cooldown and invalid-attempt handling. Formal
+task/Refiner integration and transfer results remain pending. See the
+[native Claude interface](experiments/mobile/README_claude_m3a.md).
+
 **November 20, 2026** — Added serial CUDA weight staging for native UI-TARS
 visual-memory peaks. An idle decoder layer returns to its original GPU before
 decoding, with an exact state-value round-trip check. Model inputs, fp16
