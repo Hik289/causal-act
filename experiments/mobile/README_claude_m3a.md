@@ -74,7 +74,57 @@ native integration must exercise the real pinned M3A action/summary interfaces
 and confirm that transport errors propagate. A synthetic live transport probe
 is still preparation and contributes zero benchmark or transfer scores.
 
-Formal E7 evaluation additionally requires the real task lifecycle, restoration
-of the frozen app snapshots before task initialization, a native high-level
-Refiner adapter, training/validation checkpoint selection and a frozen held-out
-task/seed protocol. This interface alone produces no E7 result.
+Formal E7 evaluation uses the frozen-task lifecycle below and still requires a
+controlled agent/Refiner runner, training/validation checkpoint selection and a
+frozen held-out task/seed protocol. This interface alone produces no E7 result.
+
+## Frozen task lifecycle
+
+`frozen_task.py` restores the frozen snapshot archive before calling the
+supplied native task initializer. The caller owns the emulator, task identity,
+parameters and split. It does not select tasks, launch a model, evaluate success
+or supply retry allowances.
+
+The host archive must match its registered SHA. Restoration verifies file
+contents, types, UID/GID, permission bits and link targets; timestamps are not
+compared. A matching existing snapshot is verified without writing. Different
+snapshot storage is exported and renamed for preservation before installing the
+frozen archive, so stale extra files cannot survive as an overlay. This helper
+does not clear real application data; any application reset belongs to the
+unchanged native initializer or teardown.
+
+`frozen_native_task` calls native teardown after the body and also attempts
+cleanup after partial initialization. Provider/body errors propagate if teardown
+also fails. The pinned native implementation can swallow failed snapshot loads
+as warnings; these initialization/teardown warnings are captured and classified
+as invalid environment preparation before scoring, rather than task zeros.
+Audit directories are created once, and existing evidence is never overwritten.
+
+```python
+from frozen_task import NativeSnapshotDevice, frozen_native_task
+
+# task and archive identity must already be bound by the private run protocol.
+env.reset(go_home=True)
+device = NativeSnapshotDevice(env.controller, adb_path=adb_path, serial=serial)
+with frozen_native_task(
+    task, env, device=device, archive=archive,
+    expected_sha256=archive_sha256, audit_dir=private_audit_dir,
+):
+    observation = env.get_state(wait_to_stabilize=True)
+```
+
+Eleven additional offline checks cover corruption, metadata changes, stale
+files, native warning handling and simultaneous provider/cleanup failures. A
+separate native development preflight restored 821 frozen members before
+`ClockTimerEntry` initialization, read a real observation and completed native
+teardown. It called neither an agent nor the success evaluator. Clock is reserved
+for development and must be excluded from future E7 held-out application sets.
+The frozen host archive remained unchanged. This preflight exercises the missing
+snapshot path; preservation of a different existing snapshot is covered by the
+offline checks.
+
+The combined mobile checks number 21. The original Claude interface tests are
+unchanged. Formal E7 still needs the controlled agent/Refiner runner,
+training/validation data and checkpoint selection, and a frozen held-out
+protocol. Preparation validity is separate from task success and provider
+availability.

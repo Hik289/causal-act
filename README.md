@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 21, 2026** — Added frozen app-snapshot restoration before native
+Android task initialization, with native teardown and preserved partial-failure
+records. Skipped snapshot-restoration warnings stop initialization before model
+actions. Eleven new checks and a development-only native task lifecycle validate
+the integration; they produce no benchmark or transfer score. See the
+[Android lifecycle notes](experiments/mobile/README_claude_m3a.md#frozen-task-lifecycle).
+
 **November 21, 2026** — Added an explicit Claude inference interface for native
 AndroidWorld M3A with unchanged native JPEG encoding and action parsing. Bounded
 provider failures propagate through action selection and summarization; model
