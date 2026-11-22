@@ -194,3 +194,38 @@ are retained in those cases. All use scripted local responses, with zero real
 task initializations, real task scorer calls, device actions, emulator launches,
 external model requests or benchmark/transfer scores. The existing provider
 readiness gate still blocks live execution before initialization.
+
+## Development Refiner proposal bridge
+
+`refiner_bridge.py` connects an explicitly supplied development policy to the
+action-proposal boundary of the pinned native M3A. It changes the returned
+Reason/Action text before native parsing. Consequently, execution, the native
+summary prompt and action history refer to the same refined action. The
+original provider response is retained separately from Refiner provenance.
+Summary requests pass through unchanged; keeping a proposal preserves the exact
+original response. The policy receives copies of the two native images and
+parsed proposal, together with the original goal and prompt. It receives no task
+object, scorer or outcome label.
+
+The private protocol must bind the exact native source and the actual supplied
+policy source, assets and settings. A changed native phase boundary, an unbound
+policy or a formal scope is rejected. Only the owned agent is wrapped, and its
+inference interface and step are restored after errors. Existing attempt and
+provider guards still belong to the outer runner. This hook does not initialize
+a task, launch an emulator, add a model request or provide retry allowances.
+
+Malformed nonempty Base and Refiner actions retain native parser behavior.
+Provider and policy failures propagate without a fallback; evidence is private
+and cannot overwrite an earlier bridge directory. An agent-generated complete
+status is not substituted for the native success evaluator.
+
+Eleven new offline checks cover proposal/history consistency, input isolation,
+summary forwarding, failure propagation and evidence preservation. Separate
+scripted cases use the actual pinned M3A and episode runner, including changed
+actions, complete status with a valid zero, malformed actions, device failure
+and local provider failures. They initialize no real task or emulator and make
+no external model request. Their scripted scores are not benchmark results.
+
+This is a development hook, not a trained mobile Refiner or a controlled paired
+runner. Training/validation data, checkpoint selection, controlled Base/Refiner
+pairing and frozen held-out task/seed evaluation remain required for E7.

@@ -16,6 +16,14 @@
 
 ## Recent Commit
 
+**November 22, 2026** — Added a source-bound development hook for native M3A
+action refinement. Execution, summaries and history use the same corrected
+proposal while preserving the original model response. Eleven offline checks
+and scripted native episodes cover passthrough, malformed actions and failure
+propagation. Training, controlled pairing and formal transfer remain pending;
+these checks produce no benchmark results. See the
+[Refiner bridge notes](experiments/mobile/README_claude_m3a.md#development-refiner-proposal-bridge).
+
 **November 21, 2026** — Prevented typed device failures caught by native M3A
 from reaching the task scorer. Private failed-step evidence is retained while
 invalid model actions keep native scoring behavior. Ten new offline checks and
