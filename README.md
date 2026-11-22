@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 21, 2026** — Prevented typed device failures caught by native M3A
+from reaching the task scorer. Private failed-step evidence is retained while
+invalid model actions keep native scoring behavior. Ten new offline checks and
+seven scripted cases using the pinned native agent and episode runner validate
+the boundary; they produce no real task or transfer scores. See the
+[device-error notes](experiments/mobile/README_claude_m3a.md#native-device-error-boundary).
+
 **November 21, 2026** — Added a bounded development Base attempt using the
 original AndroidWorld episode runner and success evaluator. Frozen source/task
 bindings and provider readiness are checked before execution. Valid zeros are

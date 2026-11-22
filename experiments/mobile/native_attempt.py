@@ -15,6 +15,7 @@ import pickle
 import sys
 
 from frozen_task import frozen_native_task
+from environment_guard import native_environment_guard
 
 ANDROID_COMMIT = "55ddaf5edc6f6c25673aed343907d5b9dca66f84"
 
@@ -124,8 +125,12 @@ def run_native_base_development(*, protocol_path, protocol_sha256,
             archive=snapshot_archive, expected_sha256=spec["snapshot_archive_sha256"],
             audit_dir=path)
 
+    def guarded_episode(**settings):
+        with native_environment_guard(agent, env, audit_dir=Path(audit_dir)/"environment_guard"):
+            return run_episode(**settings)
+
     return _execute_attempt(spec=spec, protocol_sha256=protocol_sha256,
-        task=task, env=env, agent=agent, run_episode=run_episode,
+        task=task, env=env, agent=agent, run_episode=guarded_episode,
         lifecycle=lifecycle, audit_dir=audit_dir)
 
 
@@ -133,6 +138,7 @@ def _bind_native_contract(*, spec, task, env, agent):
     from android_world import episode_runner, suite_utils
     from android_world.agents import base_agent, infer, m3a, m3a_utils
     from android_world.task_evals import task_eval
+    from android_world.env import adb_utils, android_world_controller, interface, actuation
     from claude_m3a import PacedClaudeWrapper
 
     modules = [episode_runner, suite_utils, base_agent, infer, m3a, m3a_utils,
@@ -141,6 +147,10 @@ def _bind_native_contract(*, spec, task, env, agent):
                 for module in modules}
     if observed != spec["native_source_sha256"]:
         raise InvalidAttempt("Actual imported native sources differ")
+    environment_sources = {module.__name__: sha(Path(inspect.getsourcefile(module)).read_bytes())
+        for module in [adb_utils, android_world_controller, interface, actuation]}
+    if environment_sources != spec["environment_source_sha256"]:
+        raise InvalidAttempt("Actual imported native environment sources differ")
     if (not isinstance(task, task_eval.TaskEval)
             or type(agent) is not m3a.M3A or agent.env is not env
             or not isinstance(agent.llm, PacedClaudeWrapper)):

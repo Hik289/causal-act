@@ -163,3 +163,34 @@ preserving an original exception when teardown also fails.
 This entry point does not establish provider recovery. A controlled Refiner
 integration, training/validation data and checkpoint selection, and frozen
 held-out applications/tasks/seeds are still required for E7.
+
+## Native device-error boundary
+
+The pinned M3A catches exceptions from `env.execute_action` and returns a failed
+step. This includes some device failures, which could otherwise reach the
+success evaluator after the episode budget is exhausted.
+
+`environment_guard.py`, used by the development Base entry, temporarily observes
+the owned agent's environment and step calls. Typed OS/HTTP/subprocess timeout,
+ADB-controller and gRPC errors, plus non-OK responses raised by the pinned ADB
+`check_ok` helper, stop the episode before scoring with
+`InvalidEnvironmentCall`. Their original cause and private failed-step evidence
+are retained, and the attempt has `score=null`. The original environment and
+agent step are restored on exit. The guard neither retries nor calls a model.
+
+Action `ValueError` and unclassified `RuntimeError` retain native behavior;
+message text alone does not determine validity. This boundary does not claim
+to diagnose every possible device failure. The native source, prompts, action
+values, screenshot encoding and default pauses remain unchanged. A new private
+development protocol must additionally freeze the actual imported environment
+source hashes; prior preparation protocols and receipts remain immutable.
+
+Ten new offline checks cover exception classification, restoration, evidence
+permissions and duplicate-attempt protection. Seven additional scripted cases
+with the actual pinned M3A and episode runner reproduce the original swallowed
+OS error, verify four device-error paths stop before scoring, and preserve
+ordinary invalid-action and healthy execution behavior. Native timing defaults
+are retained in those cases. All use scripted local responses, with zero real
+task initializations, real task scorer calls, device actions, emulator launches,
+external model requests or benchmark/transfer scores. The existing provider
+readiness gate still blocks live execution before initialization.
