@@ -16,6 +16,14 @@
 
 ## Recent Commit
 
+**November 23, 2026** — Added a frozen development Base/Refiner pair runner
+with immutable arm receipts, an exclusive pair lock and resume of unstarted
+arms only. Valid zeros remain scored; invalid attempts never enter the paired
+denominator or gain automatic retries. Sixteen new checks and four scripted
+native pairs validate the boundary. Provider recovery, trained checkpoints and
+formal transfer remain pending. See the
+[controlled-pair notes](experiments/mobile/README_claude_m3a.md#controlled-development-pairs).
+
 **November 22, 2026** — Added a source-bound development hook for native M3A
 action refinement. Execution, summaries and history use the same corrected
 proposal while preserving the original model response. Eleven offline checks

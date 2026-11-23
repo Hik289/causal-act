@@ -63,11 +63,15 @@ def validate_protocol(spec, *, task):
 
 
 def _execute_attempt(*, spec, protocol_sha256, task, env, agent,
-                     run_episode, lifecycle, audit_dir):
+                     run_episode, lifecycle, audit_dir,
+                     attempt_method="native_m3a_base"):
     """Shared control boundary; injectable functions support offline checks."""
+    if attempt_method not in ("native_m3a_base", "native_m3a_refiner_development"):
+        raise InvalidAttempt("Unknown development attempt method")
     audit = Path(audit_dir)
     audit.mkdir(mode=0o700, parents=True, exist_ok=False)
-    record = dict(scope="development-only native Base; not benchmark or transfer",
+    record = dict(scope="development-only native episode; not benchmark or transfer",
+        method=attempt_method,
         run_id=spec["run_id"], protocol_sha256=protocol_sha256,
         task_family=spec["task_family"], seed=spec["seed"],
         valid=False, score=None, benchmark_scores=0, transfer_scores=0,

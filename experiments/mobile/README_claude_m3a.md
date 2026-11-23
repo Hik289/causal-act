@@ -226,6 +226,37 @@ actions, complete status with a valid zero, malformed actions, device failure
 and local provider failures. They initialize no real task or emulator and make
 no external model request. Their scripted scores are not benchmark results.
 
-This is a development hook, not a trained mobile Refiner or a controlled paired
-runner. Training/validation data, checkpoint selection, controlled Base/Refiner
-pairing and frozen held-out task/seed evaluation remain required for E7.
+The bridge supplies a development hook. The controlled pair entry below adds
+orchestration; a trained mobile Refiner, training/validation checkpoint selection
+and frozen held-out task/seed evaluation remain required for E7.
+
+## Controlled development pairs
+
+`controlled_pair.py` runs one pre-registered development Base/Refiner pair in a
+frozen arm order. Both arms require fresh native task and agent objects, with
+identical task parameters, seed, goal, native settings and snapshot archive. The
+actual implementation files, native protocol and policy-bridge protocol are
+bound by SHA before either arm initializes a task. Provider-pending evidence
+blocks the public entry before initialization or model requests. The caller
+supplies the owned environment and policy; there is no emulator launcher,
+provider fallback, learned policy, training procedure or formal-transfer queue.
+
+Each arm has exactly one attempt. An exclusive pair lock prevents concurrent
+controllers. Resume verifies the original protocol, result and recursively
+hashed evidence, preserves both valid zeros and invalid attempts, and executes
+only an arm whose attempt has never started. An interrupted arm without a
+committed receipt requires inspection rather than a new attempt. Earlier
+reports are retained under separate filenames. A provider, device or cleanup
+failure remains invalid with `score=null`; the original exception propagates.
+
+The effective pair denominator is one only when both native scores are valid.
+Otherwise the paired difference is null, while any valid arm remains visible.
+All development receipts have zero benchmark and transfer scores. The Refiner
+arm is explicitly identified in its native attempt record.
+
+Sixteen new offline checks cover immutable scores, invalid-arm preservation,
+resume, concurrency and identity gates. Separate scripted pairs exercise the
+pinned native M3A and episode runner; fixture scores are preparation evidence.
+These do not establish online provider recovery or a trained Refiner. E7 still
+requires training/validation selection, frozen held-out applications/tasks/seeds
+and actual controlled live execution before any formal result is reported.

@@ -161,15 +161,8 @@ def _owned_bridge(agent, *, refiner, parse_action, audit_dir, binding):
             agent.step = instance_step
 
 
-@contextmanager
-def native_refiner_bridge(agent, *, refiner, protocol_path, protocol_sha256, audit_dir):
-    """Bind an already supplied development policy to the exact native M3A.
-
-    This is not a formal runner or trained checkpoint verification. The caller
-    must separately gate provider readiness and native task initialization. The
-    identity manifest binds the supplied policy's code/assets/settings; it must
-    not label a scripted development callback as a learned Refiner result.
-    """
+def bind_native_refiner_contract(agent, *, refiner, protocol_path, protocol_sha256):
+    """Validate the bridge without creating evidence or executing an agent."""
     from android_world.agents import agent_utils, m3a, m3a_utils
     from android_world.env import json_action
     from claude_m3a import PacedClaudeWrapper
@@ -201,6 +194,14 @@ def native_refiner_bridge(agent, *, refiner, protocol_path, protocol_sha256, aud
             return None, None
         return reason, json_action.JSONAction(**agent_utils.extract_json(action)).as_dict()
 
+    return spec, parse_action
+
+
+@contextmanager
+def native_refiner_bridge(agent, *, refiner, protocol_path, protocol_sha256, audit_dir):
+    """Bind a development policy, without claiming a trained or formal method."""
+    spec, parse_action = bind_native_refiner_contract(agent, refiner=refiner,
+        protocol_path=protocol_path, protocol_sha256=protocol_sha256)
     with _owned_bridge(agent, refiner=refiner, parse_action=parse_action,
                        audit_dir=audit_dir, binding=spec):
         yield
