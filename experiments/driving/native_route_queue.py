@@ -248,6 +248,12 @@ def wait_native_actor(actor, simulator_pid, gpu_uuid, raw_file, log_file,
         completed = finished_native_record(raw_file, log_file, expected_route)
         if completed is not None:
             return completed
+        if not group_pids(simulator_pid):
+            # The simulator may exit just after committing its final score.
+            completed = finished_native_record(raw_file, log_file, expected_route)
+            if completed is not None:
+                return completed
+            raise RuntimeError('Owned simulator exited before a complete native score')
         _, busy = inventory()
         if busy[gpu_uuid] - group_pids(simulator_pid) - group_pids(actor.pid):
             # Scoring may finish while nvidia-smi is collecting its snapshot.

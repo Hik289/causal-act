@@ -16,6 +16,12 @@
 
 ## Recent Commit
 
+**November 24, 2026** — Stopped unfinished native evaluations when their owned
+simulator exits. Fully committed scores still take precedence, including a
+zero committed during the process-exit check. Three checks cover the crash
+boundary without adding retries or changing the native task budget. See the
+[completion notes](experiments/driving/README_native_route_queue.md#completed-score-boundary).
+
 **November 24, 2026** — Added a bounded wait for the owned simulator's physical
 GPU registration after its original warmup. The evaluator starts only after a
 positive UUID match; wrong devices, foreign compute and shutdown still stop the

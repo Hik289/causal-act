@@ -91,7 +91,10 @@ and the original native record/log validity checks. A complete score, including
 zero, is frozen before a subsequent resource check can classify teardown as an
 environment failure. Completion is checked again if it occurs during the
 resource inventory call. Unfinished episodes retain the original foreign-process
-and one-hour no-progress guards. Only the owned actor and simulator are cleaned;
+and one-hour no-progress guards. If the owned simulator group exits before a
+complete score, the controller stops its waiting evaluator as an invalid
+environment attempt. It rechecks completion at that boundary, retaining a
+score committed during the process check. Only the owned actor and simulator are cleaned;
 the final native outcome must remain identical after cleanup before its hashes
 are committed. This adds no route attempts or policy execution budget.
 
@@ -105,6 +108,7 @@ of score. Corrected aggregation from old raw files is a historical scoring
 re-audit, not a new independent evaluation. Partial, post-abort, wrong-route or
 environment-error output cannot be recovered by this rule.
 
-Thirteen offline checks cover zero/positive completion, pending and malformed
+Sixteen offline checks cover zero/positive completion, pending and malformed
 records, completion during inventory, unchanged outcome data after cleanup,
-historical ordering and the full queue path committing a zero exactly once.
+historical ordering, simulator exit before or during final scoring and the full
+queue path committing a zero exactly once.

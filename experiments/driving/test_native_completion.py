@@ -63,6 +63,30 @@ class CompletionBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'Foreign compute'):
                 self.wait()
 
+    def test_dead_simulator_stops_unscored_actor_before_inventory(self):
+        self.pending()
+        with patch.object(nq, 'group_pids', return_value=set()), \
+             patch.object(nq, 'inventory') as inventory:
+            with self.assertRaisesRegex(RuntimeError, 'Owned simulator exited'):
+                self.wait()
+        inventory.assert_not_called()
+        self.assertIsNone(nq.finished_native_record(self.raw,self.log,self.route))
+
+    def test_complete_zero_survives_simulator_exit(self):
+        with patch.object(nq, 'group_pids', return_value=set()) as processes:
+            self.assertEqual(self.wait()['scores']['score_composed'],0.)
+        processes.assert_not_called()
+
+    def test_completion_during_simulator_exit_check_is_retained(self):
+        self.pending()
+        def exited(_):
+            self.write_complete()
+            return set()
+        with patch.object(nq, 'group_pids', side_effect=exited), \
+             patch.object(nq, 'inventory') as inventory:
+            self.assertEqual(self.wait()['scores']['score_composed'],0.)
+        inventory.assert_not_called()
+
     def test_completion_during_inventory_snapshot_is_retained(self):
         self.pending()
         def inventory():
