@@ -16,6 +16,12 @@
 
 ## Recent Commit
 
+**November 24, 2026** — Added pinned SimLingo CPU architecture/checkpoint
+preparation. Strict loading matched all 992 state tensors, with CUDA and HTTP
+calls blocked during the check. The evidence retains native settings and
+runtime differences; GPU setup and driving scores remain pending. See the
+[CPU preparation notes](experiments/driving/README_simlingo_cpu_preflight.md).
+
 **November 24, 2026** — Stopped unfinished native evaluations when their owned
 simulator exits. Fully committed scores still take precedence, including a
 zero committed during the process-exit check. Three checks cover the crash
