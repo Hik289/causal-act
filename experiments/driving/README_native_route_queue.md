@@ -21,7 +21,8 @@ original timestamp; restarting does not rewrite this protected input.
 it creates no logical device or GPU allocation. Vulkan adapter indices are
 matched to physical NVIDIA UUIDs. After boot, the controller separately checks
 the actual Unreal process's GPU before launching native policy inference. A
-missing or different mapping is an invalid environment attempt.
+different mapping or a mapping still missing at the boot deadline is an invalid
+environment attempt.
 
 Every missing method/route receives a new owned simulator and an immutable
 attempt directory. The official evaluator performs the complete agent
@@ -56,12 +57,31 @@ The installed layer must first enumerate exactly that UUID as its sole device;
 only then does the simulator receive adapter index zero. The native policy's
 environment remains unchanged. The existing post-boot check still requires
 the owned Unreal process to appear on exactly the selected physical GPU.
-Extra or missing devices stop the attempt. This does not relax the identity
+Extra devices or a missing device at the boot deadline stop the attempt. This does not relax the identity
 guard, add retries, change rendering quality or modify policy inputs.
 Mesa enumeration alone is insufficient: an independently recorded boot still
 created a small graphics context on another card. The process device namespace
 is therefore required as well. Mounts affect only the owned child; host device
 nodes and other processes remain unchanged.
+
+## Simulator boot identity
+
+A live launcher can have no GPU process registered at the original 55-second
+warmup boundary. That absence does not confirm a wrong physical GPU. The
+controller now waits after that warmup, for up to 600 seconds of total boot
+time, without launching the evaluator or policy. It still requires exactly
+the selected physical UUID. A different or additional device fails immediately;
+foreign compute on the selected GPU, simulator exit or controller shutdown
+also prevents admission. An empty device set at the deadline fails closed and
+stops the queue for inspection. The bounded boot window accommodates delayed
+startup; it does not change the 60-second idle gate, memory requirement, native
+task horizon, one-hour episode no-progress guard or route retry budget.
+
+Eight offline checks cover delayed and immediate registration, missing and
+incorrect devices, foreign and owned processes, shutdown and simulator exit.
+Previous invalid attempts remain immutable and consume their original budget.
+Restarting after repair skips exhausted routes and every scored route; it does
+not create a fourth attempt or repeat GPU setup.
 
 ## Completed-score boundary
 

@@ -16,6 +16,13 @@
 
 ## Recent Commit
 
+**November 24, 2026** — Added a bounded wait for the owned simulator's physical
+GPU registration after its original warmup. The evaluator starts only after a
+positive UUID match; wrong devices, foreign compute and shutdown still stop the
+attempt. Eight checks cover delayed registration and failure paths. Original
+route attempts, completed scores and task budgets remain unchanged. See the
+[simulator boot notes](experiments/driving/README_native_route_queue.md#simulator-boot-identity).
+
 **November 24, 2026** — Preserved finished native driving scores before actor
 teardown can trigger a resource error. The strict completion boundary retains
 zero scores, keeps unfinished-episode guards and adds no attempts. Thirteen

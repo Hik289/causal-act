@@ -91,6 +91,33 @@ def rendered_gpu_uuids(pids):
             if any(int(p.findtext('pid')) in pids for p in g.findall('processes/process_info'))}
 
 
+def wait_simulator_device(simulator, gpu_uuid, stop, timeout_seconds=545):
+    """After the original 55 s warmup, confirm the device within 600 s total.
+
+    A live launcher with no registered GPU process is still unverified. Wait
+    without starting the evaluator; a wrong device or foreign compute remains
+    an immediate failure. The native task and its tick budget have not begun.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    while not stop.is_set():
+        if simulator.poll() is not None:
+            raise RuntimeError('Simulator exited before physical GPU confirmation')
+        pids = group_pids(simulator.pid)
+        actual = rendered_gpu_uuids(pids)
+        if actual and actual != {gpu_uuid}:
+            raise DeviceIdentityError('Simulator rendered on an unverified or different physical GPU: ' + str(actual))
+        _, busy = inventory()
+        if busy[gpu_uuid] - pids:
+            raise RuntimeError('GPU acquired by another compute job before native evaluation')
+        if actual == {gpu_uuid}:
+            return actual
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise DeviceIdentityError('No verified simulator GPU appeared within the native boot deadline')
+        stop.wait(min(5, remaining))
+    raise RuntimeError('Controller stop requested')
+
+
 def normalized_uuid(value):
     value = value.lower()
     return (value[4:] if value.startswith('gpu-') else value).replace('-', '')
@@ -422,12 +449,7 @@ class Queue:
                 self.save()
                 if self.stop.wait(55) or simulator.poll() is not None:
                     raise RuntimeError('Simulator did not remain alive through boot')
-                actual = rendered_gpu_uuids(group_pids(simulator.pid))
-                if actual != {gpu['uuid']}:
-                    raise DeviceIdentityError('Simulator rendered on an unverified or different physical GPU: ' + str(actual))
-                _, busy = inventory()
-                if busy[gpu['uuid']] - group_pids(simulator.pid):
-                    raise RuntimeError('GPU acquired by another compute job before native evaluation')
+                wait_simulator_device(simulator, gpu['uuid'], self.stop)
                 command = [spec['python'], '-u', self.protocol['evaluator'],
                     '--routes=' + str(out / 'route.xml'), '--repetitions=1', '--track=SENSORS',
                     '--traffic-manager-seed=0', '--checkpoint=' + str(out / 'results.json'),
