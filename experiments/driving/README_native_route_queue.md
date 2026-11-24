@@ -62,3 +62,29 @@ Mesa enumeration alone is insufficient: an independently recorded boot still
 created a small graphics context on another card. The process device namespace
 is therefore required as well. Mounts affect only the owned child; host device
 nodes and other processes remain unchanged.
+
+## Completed-score boundary
+
+The native actor can remain alive in teardown after writing its final outcome.
+`finished_native_record` requires `Finished`, eligibility, progress `[1, 1]`
+and the original native record/log validity checks. A complete score, including
+zero, is frozen before a subsequent resource check can classify teardown as an
+environment failure. Completion is checked again if it occurs during the
+resource inventory call. Unfinished episodes retain the original foreign-process
+and one-hour no-progress guards. Only the owned actor and simulator are cleaned;
+the final native outcome must remain identical after cleanup before its hashes
+are committed. This adds no route attempts or policy execution budget.
+
+`recoverable_finished_record` provides a read-only historical qualification rule
+for the earlier race: the complete raw record and log must predate the exact
+foreign-compute abort. Protocol, runtime and physical-device bindings must be
+verified separately. A recovery must apply the same rule to every route,
+preserve every invalid marker and later valid attempt, and archive the original
+aggregation. The primary record is the earliest qualifying attempt, regardless
+of score. Corrected aggregation from old raw files is a historical scoring
+re-audit, not a new independent evaluation. Partial, post-abort, wrong-route or
+environment-error output cannot be recovered by this rule.
+
+Thirteen offline checks cover zero/positive completion, pending and malformed
+records, completion during inventory, unchanged outcome data after cleanup,
+historical ordering and the full queue path committing a zero exactly once.

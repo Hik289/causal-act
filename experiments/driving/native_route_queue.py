@@ -197,6 +197,70 @@ def valid_record(raw_file, log_file, expected_route):
                 log_file=str(log_file), log_sha256=sha(log_file))
 
 
+def finished_native_record(raw_file, log_file, expected_route):
+    """Freeze a fully committed native outcome, including a scored zero.
+
+    A native actor can remain alive during teardown after writing its final
+    score. Resource checks after this boundary must not invalidate that score.
+    Incomplete writes and environment failures still require the original guard.
+    """
+    try:
+        raw = json.loads(raw_file.read_text())
+        if (raw.get('entry_status') != 'Finished' or raw.get('eligible') is not True
+                or raw.get('_checkpoint', {}).get('progress') != [1, 1]):
+            return None
+        return valid_record(raw_file, log_file, expected_route)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def wait_native_actor(actor, simulator_pid, gpu_uuid, raw_file, log_file,
+                      expected_route, stop, stall_seconds):
+    """Watch the owned episode; final scoring precedes post-score cleanup."""
+    while actor.poll() is None and not stop.wait(5):
+        completed = finished_native_record(raw_file, log_file, expected_route)
+        if completed is not None:
+            return completed
+        _, busy = inventory()
+        if busy[gpu_uuid] - group_pids(simulator_pid) - group_pids(actor.pid):
+            # Scoring may finish while nvidia-smi is collecting its snapshot.
+            completed = finished_native_record(raw_file, log_file, expected_route)
+            if completed is not None:
+                return completed
+            raise RuntimeError('Foreign compute entered allocated GPU; own attempt stopped')
+        if time.time() - log_file.stat().st_mtime > stall_seconds:
+            raise RuntimeError('Owned native evaluation produced no progress for the frozen environment stall window')
+    if stop.is_set():
+        raise RuntimeError('Controller stop requested')
+    return finished_native_record(raw_file, log_file, expected_route)
+
+
+def same_native_outcome(before, after):
+    """Cleanup may append logs, but cannot replace the committed score data."""
+    metadata = {'raw_file', 'raw_sha256', 'log_file', 'log_sha256'}
+    return ({key: value for key, value in before.items() if key not in metadata}
+            == {key: value for key, value in after.items() if key not in metadata})
+
+
+def recoverable_finished_record(raw_file, log_file, invalid_file, expected_route):
+    """Read-only qualification of a score committed before a late abort.
+
+    Callers must separately bind the original protocol/runtime and preserve all
+    earlier aggregation and receipts. This rule never selects by score value.
+    """
+    try:
+        invalid = json.loads(invalid_file.read_text())
+        if (invalid.get('valid') is not False or invalid.get('score') is not None
+                or invalid.get('error') != 'RuntimeError'
+                or invalid.get('message') != 'Foreign compute entered allocated GPU; own attempt stopped'
+                or max(raw_file.stat().st_mtime_ns, log_file.stat().st_mtime_ns)
+                   >= invalid_file.stat().st_mtime_ns):
+            return None
+        return finished_native_record(raw_file, log_file, expected_route)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
 class Queue:
     def __init__(self, protocol_file, runtime_repair_file=None):
         self.path = Path(protocol_file).resolve()
@@ -376,14 +440,14 @@ class Queue:
                         stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
                     self.state.update(phase='native simulator lifecycle and route evaluation', evaluation_pid=actor.pid)
                     self.save()
-                    while actor.poll() is None and not self.stop.wait(5):
-                        _, busy = inventory()
-                        if busy[gpu['uuid']] - group_pids(simulator.pid) - group_pids(actor.pid):
-                            raise RuntimeError('Foreign compute entered allocated GPU; own attempt stopped')
-                        if time.time() - (out / 'evaluation.log').stat().st_mtime > self.protocol['environment_stall_seconds']:
-                            raise RuntimeError('Owned native evaluation produced no progress for the frozen environment stall window')
-                    if self.stop.is_set():
-                        raise RuntimeError('Controller stop requested')
+                    completed = wait_native_actor(actor, simulator.pid, gpu['uuid'],
+                        out / 'results.json', out / 'evaluation.log',
+                        'RouteScenario_' + route.get('id') + '_rep0', self.stop,
+                        self.protocol['environment_stall_seconds'])
+                # The native task is finished. Only the owned teardown remains;
+                # flush both groups before hashing the immutable score/log.
+                clean_group(actor)
+                actor = None
                 # Let the owned Unreal process flush its log before preserving hashes.
                 clean_group(simulator)
                 simulator = None
@@ -391,6 +455,8 @@ class Queue:
                     'RouteScenario_' + route.get('id') + '_rep0')
                 if record is None:
                     raise RuntimeError('No valid native official result; inspect retained logs')
+                if completed is None or not same_native_outcome(completed, record):
+                    raise RuntimeError('Native final outcome changed during owned cleanup; inspect retained records')
                 atomic(out / 'verified_result.json', dict(valid=True, fixture=False, method=method,
                     route_id=record['route_id'], record=record, protocol_sha256=self.protocol_sha,
                     native_planning_model=method, same_model_causal_effect_claim=False))

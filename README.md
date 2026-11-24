@@ -16,6 +16,14 @@
 
 ## Recent Commit
 
+**November 24, 2026** — Preserved finished native driving scores before actor
+teardown can trigger a resource error. The strict completion boundary retains
+zero scores, keeps unfinished-episode guards and adds no attempts. Thirteen
+checks cover the boundary and immutable outcomes. Historical qualification
+applies one rule to all routes, keeps original attempts and aggregation, and
+uses the earliest qualifying score. See the
+[native completion notes](experiments/driving/README_native_route_queue.md#completed-score-boundary).
+
 **November 23, 2026** — Added a frozen development Base/Refiner pair runner
 with immutable arm receipts, an exclusive pair lock and resume of unstarted
 arms only. Valid zeros remain scored; invalid attempts never enter the paired
